@@ -7,6 +7,7 @@ import { MMKV } from 'react-native-mmkv';
 const storage = new MMKV({ id: 'effective-java-app' });
 
 const KEYS = {
+  HAS_ONBOARDED: 'has_onboarded',
   PURCHASE_STATUS: 'purchase_status', // 'free' | 'unlocked'
   DAILY_GOAL_MINUTES: 'daily_goal_minutes',
   CURRENT_STREAK: 'current_streak',
@@ -15,6 +16,16 @@ const KEYS = {
   PROGRESS_PREFIX: 'progress:', // + item_number -> JSON
   SESSION_PREFIX: 'session:', // + YYYY-MM-DD -> JSON
 } as const;
+
+// ---- Onboarding ----
+
+export function hasOnboarded(): boolean {
+  return storage.getBoolean(KEYS.HAS_ONBOARDED) ?? false;
+}
+
+export function setOnboarded(): void {
+  storage.set(KEYS.HAS_ONBOARDED, true);
+}
 
 // ---- Paywall ----
 
