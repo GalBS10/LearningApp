@@ -1,0 +1,26 @@
+{
+  "id": "item-001",
+  "title": "Prefer static factory methods to constructors",
+  "description": "Learn why static factories can be more flexible than constructors.",
+  "concept": "Static factory methods can have names, can return subtypes, and can avoid creating new objects.",
+  "wrongCode": "public class Connection {\n  public Connection() { ... }\n}",
+  "rightCode": "public class Connection {\n  private Connection() { ... }\n  public static Connection create() {\n    return new Connection();\n  }\n}",
+  "flashcards": [
+    {
+      "question": "Why use static factory methods instead of constructors?",
+      "answer": "They can have descriptive names, reuse instances, and return subtypes."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "Which benefit does a static factory method provide?",
+      "options": [
+        "A named constructor", 
+        "A language-level keyword", 
+        "A guaranteed singleton", 
+        "No runtime checks"
+      ],
+      "answer": "A named constructor"
+    }
+  ]
+}
