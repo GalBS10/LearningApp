@@ -47,7 +47,9 @@ Copy these files into `effective-java-app/`, overwriting what's there:
 - `index.js`
 - `app.json`
 
-Copy the entire `src/` folder into `effective-java-app/src/`.
+Copy the entire `src/` folder into `effective-java-app/src/`. It includes:
+`types/`, `storage/`, `content/`, `navigation/`, `screens/`, `components/`,
+`notifications/`, and `purchases/`.
 
 ### 3. Install dependencies
 
@@ -80,13 +82,21 @@ should launch in the emulator showing the lesson feed.
 - Only **item 1** has real content — items 2-90 show as "(coming soon)" and
   are locked, until you generate more via the Claude Code content skill and
   add them to `src/content/index.ts`
-- **Paywall unlock button is fake** — it calls `markUnlocked()` directly with
-  no real purchase. `react-native-iap` is in `package.json` but not wired up
-  yet.
-- **Notifications aren't implemented yet** — `@notifee/react-native` is
-  installed but no scheduling code exists yet.
-- **Onboarding screen doesn't exist yet** — the app opens straight to the
-  lesson feed with a default 10 min/day goal.
+- **Paywall** now runs through a real `react-native-iap` purchase + restore
+  flow (see `src/purchases/iap.ts` and `PaywallScreen`) — but the product ID
+  (`unlock_all_lessons`) still needs to be created in App Store Connect /
+  Google Play Console before a real purchase will succeed
+- **Notifications** are wired through `@notifee/react-native`
+  (`src/notifications/scheduler.ts`), scheduled once onboarding completes —
+  full suppression when the daily goal is already met relies on a background
+  event handler that still needs to be registered (currently only checked
+  via `suppressIfGoalMet()`, which isn't called from anywhere yet)
+- **Onboarding** now sets the daily goal and requests notification
+  permission on first launch; `AppNavigator` routes new users there
+  automatically via `hasOnboarded()`
+- **Progress screen** shows real streak/completion data
+- Nothing here has been tested against a real Android build yet — treat this
+  as "should work" based on code review, not "confirmed working"
 
 ## If something breaks
 
