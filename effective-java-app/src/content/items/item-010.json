@@ -1,0 +1,90 @@
+{
+  "item_number": 10,
+  "title": "Obey the general contract when overriding equals",
+  "concept": "The easiest way to avoid problems with equals is not to override it, which is appropriate for classes representing active entities rather than values (like Thread), or when logical equality is identical to object identity. When overriding equals for value classes, you must adhere strictly to the equivalence relation contract: Reflexive (x.equals(x) is true), Symmetric (x.equals(y) == y.equals(x)), Transitive (x.equals(y) and y.equals(z) implies x.equals(z)), Consistent (multiple invocations return identical results), and Non-nullity (x.equals(null) is false). There is no way to extend an instantiable class and add a value component while preserving the equals contract unless you favor composition over inheritance.",
+  "wrong_code": {
+    "class": "// Violates Symmetry or Transitivity when subclassing with a new value field!\npublic class Point {\n    private final int x, y;\n    public Point(int x, int y) { this.x = x; this.y = y; }\n    \n    @Override public boolean equals(Object o) {\n        if (!(o instanceof Point)) return false;\n        Point p = (Point) o;\n        return p.x == x && p.y == y;\n    }\n}\n\npublic class ColorPoint extends Point {\n    private final String color;\n    public ColorPoint(int x, int y, String color) {\n        super(x, y);\n        this.color = color;\n    }\n    \n    // Attempting mixed comparisons violates symmetry or transitivity!\n    @Override public boolean equals(Object o) {\n        if (!(o instanceof Point)) return false;\n        // If o is a normal Point, ignore color — VIOLATES TRANSITIVITY!\n        if (!(o instanceof ColorPoint))\n            return o.equals(this);\n        return super.equals(o) && ((ColorPoint) o).color.equals(color);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        ColorPoint p1 = new ColorPoint(1, 2, \"red\");\n        Point p2 = new Point(1, 2);\n        ColorPoint p3 = new ColorPoint(1, 2, \"blue\");\n\n        // p1.equals(p2) is true, p2.equals(p3) is true...\n        // But p1.equals(p3) is false! Transitivity is broken!\n        System.out.println(p1.equals(p2)); // true\n        System.out.println(p2.equals(p3)); // true\n        System.out.println(p1.equals(p3)); // false!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Favor composition over inheritance: give ColorPoint a private Point field\nimport java.util.Objects;\n\npublic class ColorPoint {\n    private final Point point;\n    private final String color;\n\n    public ColorPoint(int x, int y, String color) {\n        this.point = new Point(x, y);\n        this.color = Objects.requireNonNull(color);\n    }\n\n    public Point asPoint() { return point; }\n\n    @Override public boolean equals(Object o) {\n        if (this == o) return true; // Performance optimization\n        if (!(o instanceof ColorPoint)) return false; // Non-nullity & type check\n        ColorPoint cp = (ColorPoint) o;\n        return cp.point.equals(point) && cp.color.equals(color);\n    }\n\n    @Override public int hashCode() {\n        return Objects.hash(point, color);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        ColorPoint cp1 = new ColorPoint(1, 2, \"red\");\n        ColorPoint cp2 = new ColorPoint(1, 2, \"red\");\n        Point p = new Point(1, 2);\n\n        System.out.println(cp1.equals(cp2)); // true (consistent & transitive)\n        System.out.println(cp1.equals(p));   // false (preserves symmetry!)\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When is it appropriate to override equals?",
+    "back": "When a class represents a logical value (like Integer, String, or Date) rather than an active entity, and the superclass has not already overridden equals appropriately."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Why can you not extend an instantiable class and add a new value field while preserving the equals contract?",
+    "back": "Because any attempt to compare instances of the superclass and subclass will either violate Symmetry (x.equals(y) != y.equals(x)) or Transitivity (x=y and y=z doesn't imply x=z). Solution: Use composition instead of inheritance."
+  },
+  "quiz": [
+    {
+      "question": "Which property of the equals contract is broken if `a.equals(b)` returns true, `b.equals(c)` returns true, but `a.equals(c)` returns false?",
+      "options": ["Reflexivity", "Symmetry", "Transitivity", "Consistency"],
+      "correct_index": 2
+    },
+    {
+      "question": "Why does using `getClass()` instead of `instanceof` in `equals` violate the Liskov Substitution Principle?",
+      "options": [
+        "It prevents instances of subclasses from behaving as instances of the superclass in collections",
+        "It runs much slower than instanceof",
+        "It allows null values to pass through unchecked",
+        "It cannot compare primitive fields"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the correct way to compare floating-point fields (`float` and `double`) in `equals` to handle NaN and -0.0f properly?",
+      "options": [
+        "Use the == operator",
+        "Use Float.compare(f1, f2) and Double.compare(d1, d2)",
+        "Cast both to int or long",
+        "Subtract one from the other and check if delta < 0.0001"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "What is a common compilation pitfall when overriding equals?",
+      "options": [
+        "Accidentally overloading equals(MyClass o) instead of overriding equals(Object o)",
+        "Returning an int instead of a boolean",
+        "Marking equals as final",
+        "Implementing equals in an interface"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How should you design a class hierarchy when you want to add a value component to an existing instantiable class?",
+      "options": [
+        "Inherit from the class and use getClass() checks in equals",
+        "Favor composition over inheritance by holding an instance of the class as a private field",
+        "Leave equals unimplemented in both classes",
+        "Make all fields volatile"
+      ],
+      "correct_index": 1
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "What are the 5 requirements of the equals method contract in Java?",
+      "model_answer": "1. Reflexive (x.equals(x) is true)\n2. Symmetric (x.equals(y) == y.equals(x))\n3. Transitive (x.equals(y) && y.equals(z) implies x.equals(z))\n4. Consistent (repeated calls return identical result if fields are unchanged)\n5. Non-nullity (x.equals(null) must return false, never throw NullPointerException)."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer writes: `public boolean equals(Person other) { ... }`. What subtle bug will occur when using `HashSet<Person>` or `list.contains(person)`?",
+      "model_answer": "The developer overloaded `equals(Person)` rather than overriding `equals(Object)`. Standard collections and frameworks invoke `equals(Object)`, so the default `Object.equals` (reference identity) will still be called, causing collections to fail to recognize equivalent objects."
+    },
+    {
+      "type": "gotcha",
+      "question": "Why shouldn't you write an explicit `if (o == null) return false;` at the beginning of your equals method?",
+      "model_answer": "An explicit null check is redundant because the subsequent `if (!(o instanceof MyClass))` check already evaluates to false when `o` is null. Omitting the manual null check keeps the method cleaner."
+    },
+    {
+      "type": "applied",
+      "question": "What is the standard step-by-step recipe for writing an optimal equals method?",
+      "model_answer": "1. Use `==` to check if argument is reference to `this` (performance shortcut).\n2. Use `instanceof` to check type and handle null.\n3. Cast argument to correct type.\n4. For each significant field, check equality (primitives with `==`, floats/doubles with `Float.compare`/`Double.compare`, objects with `Objects.equals()`).\n5. Always override `hashCode` when overriding `equals`."
+    }
+  ]
+}

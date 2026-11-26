@@ -1,0 +1,95 @@
+{
+  "item_number": 11,
+  "title": "Always override hashCode when you override equals",
+  "concept": "You must override hashCode in every class that overrides equals. Failure to do so violates the hashCode contract, which states that equal objects must have equal hash codes. When this contract is violated, hash-based collections such as HashMap, HashSet, and Hashtable fail to find elements that are logically equal, causing phantom duplicate entries or get() returning null.",
+  "wrong_code": {
+    "class": "// Overrides equals, but forgets hashCode!\npublic final class PhoneNumber {\n    private final short areaCode, prefix, lineNum;\n\n    public PhoneNumber(int areaCode, int prefix, int lineNum) {\n        this.areaCode = (short) areaCode;\n        this.prefix   = (short) prefix;\n        this.lineNum  = (short) lineNum;\n    }\n\n    @Override public boolean equals(Object o) {\n        if (o == this) return true;\n        if (!(o instanceof PhoneNumber)) return false;\n        PhoneNumber pn = (PhoneNumber) o;\n        return pn.lineNum == lineNum && pn.prefix == prefix && pn.areaCode == areaCode;\n    }\n    // No hashCode()!\n}",
+    "call_site": "import java.util.HashMap;\nimport java.util.Map;\n\npublic class Main {\n    public static void main(String[] args) {\n        Map<PhoneNumber, String> m = new HashMap<>();\n        m.put(new PhoneNumber(707, 867, 5309), \"Jenny\");\n\n        // You expect \"Jenny\", but gets null!\n        // The two instances have different identity hash codes, landing in different buckets!\n        System.out.println(m.get(new PhoneNumber(707, 867, 5309))); // prints null!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Properly overrides both equals and hashCode with caching for immutable class\nimport java.util.Objects;\n\npublic final class PhoneNumber {\n    private final short areaCode, prefix, lineNum;\n    private int hashCode; // Cache hashCode for immutable object\n\n    public PhoneNumber(int areaCode, int prefix, int lineNum) {\n        this.areaCode = (short) areaCode;\n        this.prefix   = (short) prefix;\n        this.lineNum  = (short) lineNum;\n    }\n\n    @Override public boolean equals(Object o) {\n        if (o == this) return true;\n        if (!(o instanceof PhoneNumber)) return false;\n        PhoneNumber pn = (PhoneNumber) o;\n        return pn.lineNum == lineNum && pn.prefix == prefix && pn.areaCode == areaCode;\n    }\n\n    @Override public int hashCode() {\n        int result = hashCode;\n        if (result == 0) {\n            result = Short.hashCode(areaCode);\n            result = 31 * result + Short.hashCode(prefix);\n            result = 31 * result + Short.hashCode(lineNum);\n            hashCode = result;\n        }\n        return result;\n    }\n}",
+    "call_site": "import java.util.HashMap;\nimport java.util.Map;\n\npublic class Main {\n    public static void main(String[] args) {\n        Map<PhoneNumber, String> m = new HashMap<>();\n        m.put(new PhoneNumber(707, 867, 5309), \"Jenny\");\n\n        // Guaranteed match: equal objects yield identical hash codes!\n        System.out.println(m.get(new PhoneNumber(707, 867, 5309))); // prints Jenny\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What happens if two objects are equal according to equals(), but you do not override hashCode()?",
+    "back": "They inherit Object.hashCode(), which returns identity hash codes. In a HashMap or HashSet, they will almost certainly hash to different buckets, so get() returns null and contains() returns false."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Why is returning a constant like `return 42;` in hashCode() technically legal but practically catastrophic?",
+    "back": "It satisfies the contract (equal objects have equal hashes), but every object maps to the exact same bucket. The hash table degenerates into a linked list with O(n) performance instead of O(1)."
+  },
+  "quiz": [
+    {
+      "question": "What is the second provision of the Object.hashCode general contract?",
+      "options": [
+        "If two objects are equal according to equals(Object), calling hashCode on each must produce the same integer result",
+        "Unequal objects must always produce distinct hash codes",
+        "Hash codes must remain identical across different JVM executions",
+        "Hash codes can only be positive integers"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why is the number 31 traditionally chosen in hashCode computations (`result = 31 * result + fieldHash`)?",
+      "options": [
+        "It is prime and odd, and multiplication by 31 can be optimized by the JVM into a bit shift and subtraction: (x << 5) - x",
+        "It is the maximum number of fields allowed in a Java record",
+        "It prevents all integer overflow errors",
+        "It is mandated by the Java Language Specification"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the primary drawback of using `Objects.hash(...)` compared to writing a custom hashCode calculation?",
+      "options": [
+        "It creates an array for varargs and autoboxes any primitive fields, making it slower in performance-critical paths",
+        "It does not obey the hashCode contract",
+        "It throws NullPointerException if any field is null",
+        "It only works on Java 17 and above"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which fields MUST be excluded from the hashCode computation?",
+      "options": [
+        "Any fields that are NOT used in equals comparisons (e.g. redundant or cached fields)",
+        "All String fields",
+        "All private fields",
+        "Primitive fields like boolean or int"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "When is it safe to lazily calculate and cache the hash code inside an instance field?",
+      "options": [
+        "Only when the class is strictly immutable",
+        "Whenever a class implements Serializable",
+        "Only for singleton enums",
+        "Caching hash codes is never permitted"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Explain the relationship between the `equals` and `hashCode` contracts in Java.",
+      "model_answer": "1. If `o1.equals(o2)` is true, `o1.hashCode() == o2.hashCode()` MUST be true.\n2. If `o1.hashCode() == o2.hashCode()` is true, `o1.equals(o2)` does NOT necessarily have to be true (hash collision).\n3. If `o1.equals(o2)` is false, having distinct hash codes is desirable for hash table performance but not strictly required by the contract."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A mutable object is used as a key in a `HashMap`. After putting it in the map, one of its fields used in `equals` and `hashCode` is modified. What happens on `map.get(key)`?",
+      "model_answer": "The modified object's new hash code points to a different bucket than the one where it was originally stored. Even if it happens to map to the same bucket, `equals` may fail against the original state. The entry becomes unretrievable (a memory leak)."
+    },
+    {
+      "type": "gotcha",
+      "question": "Why shouldn't you omit significant fields from your hashCode computation in an attempt to improve computation speed?",
+      "model_answer": "While computation might be slightly faster, it dramatically increases hash collisions for large datasets where differences exist in those omitted fields. The resulting O(n) bucket degradation will dwarf any microscopic gains from skipping fields."
+    },
+    {
+      "type": "applied",
+      "question": "How do Java Records (introduced in Java 14/16) handle equals and hashCode?",
+      "model_answer": "Records automatically generate standard, robust implementations of `equals()` and `hashCode()` based on all component fields in the record header, eliminating boilerplate while strictly guaranteeing the contracts."
+    }
+  ]
+}
