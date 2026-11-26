@@ -1,0 +1,95 @@
+{
+  "item_number": 2,
+  "title": "Consider a builder when faced with many constructor parameters",
+  "concept": "Telescoping constructors (parameter bloat) become hard to read, write, and maintain when a class has many optional parameters. The JavaBeans pattern (getters/setters) allows construction, but leaves objects in an inconsistent, mutable state mid-construction. The Builder pattern combines the safety of telescoping constructors with the readability of JavaBeans, allowing immutable instances with fluent, readable construction.",
+  "wrong_code": {
+    "class": "// Telescoping constructors: hard to read and error-prone when adjacent parameters share types.\n// Alternatively, JavaBeans pattern leaves objects mutable and inconsistent during setters.\npublic class NutritionFacts {\n    private final int servingSize;  // required\n    private final int servings;     // required\n    private final int calories;     // optional\n    private final int fat;          // optional\n    private final int sodium;       // optional\n\n    public NutritionFacts(int servingSize, int servings) {\n        this(servingSize, servings, 0);\n    }\n    public NutritionFacts(int servingSize, int servings, int calories) {\n        this(servingSize, servings, calories, 0);\n    }\n    public NutritionFacts(int servingSize, int servings, int calories, int fat) {\n        this(servingSize, servings, calories, fat, 0);\n    }\n    public NutritionFacts(int servingSize, int servings, int calories, int fat, int sodium) {\n        this.servingSize = servingSize;\n        this.servings = servings;\n        this.calories = calories;\n        this.fat = fat;\n        this.sodium = sodium;\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // What do 240, 8, and 35 mean? Easy to accidentally swap arguments of the same type!\n        NutritionFacts cocaCola = new NutritionFacts(240, 8, 100, 0, 35);\n    }\n}"
+  },
+  "right_code": {
+    "class": "public class NutritionFacts {\n    private final int servingSize;\n    private final int servings;\n    private final int calories;\n    private final int fat;\n    private final int sodium;\n\n    public static class Builder {\n        // Required parameters\n        private final int servingSize;\n        private final int servings;\n\n        // Optional parameters - initialized to default values\n        private int calories = 0;\n        private int fat = 0;\n        private int sodium = 0;\n\n        public Builder(int servingSize, int servings) {\n            this.servingSize = servingSize;\n            this.servings = servings;\n        }\n\n        public Builder calories(int val) { calories = val; return this; }\n        public Builder fat(int val)      { fat = val; return this; }\n        public Builder sodium(int val)   { sodium = val; return this; }\n\n        public NutritionFacts build() {\n            return new NutritionFacts(this);\n        }\n    }\n\n    private NutritionFacts(Builder builder) {\n        servingSize = builder.servingSize;\n        servings    = builder.servings;\n        calories    = builder.calories;\n        fat         = builder.fat;\n        sodium      = builder.sodium;\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        NutritionFacts cocaCola = new NutritionFacts.Builder(240, 8)\n            .calories(100)\n            .sodium(35)\n            .build();\n        System.out.println(cocaCola);\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should you prefer the Builder pattern over constructors or static factories?",
+    "back": "When designing classes with more than a few parameters, especially if many are optional or share the same primitive type (e.g. multiple ints or Strings)."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "When is a Builder unnecessary overhead?",
+    "back": "When a class has only 2–3 required fields with few or no optional parameters. A simple constructor or static factory is much cleaner and avoids extra builder allocation."
+  },
+  "quiz": [
+    {
+      "question": "What is the primary danger of the JavaBeans pattern (using default constructor followed by setters)?",
+      "options": [
+        "It prevents objects from using primitive types",
+        "It leaves the object in an inconsistent state midway through construction and precludes immutability",
+        "It cannot be used with JSON serialization",
+        "It requires significantly more memory than a builder"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "How does the Builder pattern ensure the constructed object is immutable?",
+      "options": [
+        "By enforcing final fields on the target class and passing builder state through a private constructor",
+        "By running inside a synchronized block",
+        "By preventing garbage collection",
+        "By restricting all methods to static methods"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Where should parameter invariant validation take place when using the Builder pattern?",
+      "options": [
+        "Only in client code before calling the builder",
+        "Inside the target class's constructor or build() method on the copied fields",
+        "Only inside getter methods",
+        "Validation is not possible when using the Builder pattern"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "What design technique allows builders to work smoothly across class hierarchies (subclasses)?",
+      "options": [
+        "Abstract classes with recursive type parameters (simulated self-types)",
+        "Overloading static factories",
+        "Reflection",
+        "Multiple inheritance of classes"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why is the telescoping constructor pattern error-prone even if code compiles without warnings?",
+      "options": [
+        "Callers can easily swap arguments of the same type without the compiler complaining",
+        "Constructors cannot call other constructors using this()",
+        "It cannot exceed 3 parameters on modern JVMs",
+        "Java limits classes to at most two constructors"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Compare the Builder pattern with Telescoping Constructors and JavaBeans. What tradeoffs does Builder make?",
+      "model_answer": "Telescoping constructors are safe and immutable but scale terribly with many parameters. JavaBeans are readable but allow inconsistent states and mutable objects. Builder provides the best of both: readable fluent syntax while preserving strict immutability and thread safety, at the cost of a small initial builder allocation."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer validates builder invariants inside the setter methods `builder.foo(val)` instead of in `build()`. What is the flaw?",
+      "model_answer": "Validating inside setters fails to catch invalid combinations across multiple fields that might depend on one another. Cross-field invariants must be validated in `build()` or the class constructor once all parameters are supplied."
+    },
+    {
+      "type": "gotcha",
+      "question": "Can you use the Builder pattern with class hierarchies (such as abstract Pizza and concrete NyPizza / Calzone)? How?",
+      "model_answer": "Yes, by using an abstract builder with a recursive type parameter (simulated self-type, e.g. `Builder<T extends Builder<T>>`). Concrete subclasses return `this` cast to `T`, allowing fluent method chaining across subclass hierarchies without explicit downcasts."
+    },
+    {
+      "type": "applied",
+      "question": "How do libraries like Project Lombok's `@Builder` implement this pattern, and what is one caveat to keep in mind?",
+      "model_answer": "Lombok generates the static inner Builder class, fluent setters, and private constructor at compile time via annotation processing. A key caveat is ensuring default field values and validation checks are properly configured, as simple `@Builder` without `@Builder.Default` can ignore inline field initializers."
+    }
+  ]
+}

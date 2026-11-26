@@ -38,8 +38,8 @@ Effective Java interview preparation mobile app built with React Native (v0.76.5
 
 ### 1. Free Trial Content Authoring (6 Items)
 Currently, only Item 1 (`item-001.json`) exists. Complete the free trial package so users can experience high-value lessons across multiple chapters:
-- [ ] **Item 2**: Consider a builder when faced with many constructor parameters (`item-002.json`)
-- [ ] **Item 3**: Enforce the singleton property with a private constructor or an enum type (`item-003.json`)
+- [x] **Item 2**: Consider a builder when faced with many constructor parameters (`item-002.json`)
+- [x] **Item 3**: Enforce the singleton property with a private constructor or an enum type (`item-003.json`)
 - [ ] **Item 10**: Obey the general contract when overriding `equals` (`item-010.json`)
 - [ ] **Item 11**: Always override `hashCode` when you override `equals` (`item-011.json`)
 - [ ] **Item 17**: Minimize mutability (`item-017.json`)

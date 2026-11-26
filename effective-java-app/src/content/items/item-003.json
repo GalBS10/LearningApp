@@ -1,0 +1,95 @@
+{
+  "item_number": 3,
+  "title": "Enforce the singleton property with a private constructor or an enum type",
+  "concept": "A singleton is a class instantiated exactly once. Making the constructor private prevents normal client instantiation, but reflection attacks (via AccessibleObject.setAccessible) and deserialization can still create multiple instances unless specifically defended against with readResolve(). A single-element enum type is the most concise, bulletproof way to implement a singleton, providing free serialization safety and ironclad protection against reflective attacks.",
+  "wrong_code": {
+    "class": "// Vulnerable traditional singleton:\n// 1. Reflection can invoke the private constructor.\n// 2. Deserializing an instance creates a new duplicate object.\nimport java.io.Serializable;\n\npublic class Elvis implements Serializable {\n    public static final Elvis INSTANCE = new Elvis();\n\n    private Elvis() {\n        // No guard against reflection!\n    }\n\n    public void leaveTheBuilding() {\n        System.out.println(\"Whoa baby, I'm outta here!\");\n    }\n}",
+    "call_site": "import java.lang.reflect.Constructor;\n\npublic class Main {\n    public static void main(String[] args) throws Exception {\n        Elvis e1 = Elvis.INSTANCE;\n        \n        // Flaw: Reflection easily bypasses the private constructor!\n        Constructor<Elvis> c = Elvis.class.getDeclaredConstructor();\n        c.setAccessible(true);\n        Elvis e2 = c.newInstance();\n        \n        System.out.println(e1 == e2); // false! Singleton contract broken!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Single-element enum singleton:\n// - Ironclad against reflection (JVM guarantees constructor cannot be invoked reflectively)\n// - Serializable for free without readResolve()\npublic enum Elvis {\n    INSTANCE;\n\n    public void leaveTheBuilding() {\n        System.out.println(\"Whoa baby, I'm outta here!\");\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Elvis elvis1 = Elvis.INSTANCE;\n        Elvis elvis2 = Elvis.INSTANCE;\n        \n        System.out.println(elvis1 == elvis2); // true\n        elvis1.leaveTheBuilding();\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What is the best, most robust approach to implement a singleton in Java?",
+    "back": "A single-element enum type. It provides complete protection against reflection attacks, serializes without extra effort, and is concise."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "When can you NOT use an enum type for a singleton?",
+    "back": "When your singleton must extend a superclass (other than Enum). In that scenario, use a private constructor with a static factory or field, defend against reflection in the constructor, and add readResolve() if serializable."
+  },
+  "quiz": [
+    {
+      "question": "Why is a single-element enum considered the gold standard for implementing singletons in modern Java?",
+      "options": [
+        "It provides ironclad protection against reflection attacks and guarantees safe serialization automatically",
+        "It runs faster by compiling directly into native assembly",
+        "Enums can extend any arbitrary superclass",
+        "Enums do not consume memory until accessed"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if a client attempts to use reflection (Constructor.newInstance) on an enum constructor?",
+      "options": [
+        "It creates a second enum instance successfully",
+        "The JVM throws an IllegalArgumentException: 'Cannot reflectively create enum objects'",
+        "It causes an OutOfMemoryError",
+        "It silently returns null"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "If a traditional class-based singleton implements Serializable, what must you do to prevent deserialization from creating a new instance?",
+      "options": [
+        "Declare all fields static",
+        "Implement a readResolve() method that returns the existing INSTANCE",
+        "Make the class final",
+        "Remove the serialVersionUID field"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "How can a traditional class-based singleton defend its private constructor against reflective invocation?",
+      "options": [
+        "Make the constructor return null",
+        "Throw an exception inside the constructor if it is invoked when the instance already exists",
+        "Remove the constructor entirely",
+        "Mark the constructor volatile"
+      ],
+      "correct_index": 1
+    },
+    {
+      "question": "What is one limitation of using an enum as a singleton?",
+      "options": [
+        "It cannot implement interfaces",
+        "It cannot extend another superclass (it already implicitly extends java.lang.Enum)",
+        "It cannot have methods",
+        "It cannot have instance fields"
+      ],
+      "correct_index": 1
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why does Joshua Bloch advocate for using an enum to implement singletons over the classic private constructor approach?",
+      "model_answer": "Enums are inherently thread-safe, inherently serializable (preventing duplicate instances on deserialization), and the JVM strictly prohibits instantiating enums via reflection, providing complete safety with virtually zero boilerplate."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer implements a singleton by making the constructor private and implementing Serializable, but forgets `readResolve()`. What bug occurs?",
+      "model_answer": "Every time an instance of the serialized class is deserialized, Java creates a brand new instance of the object regardless of constructor privacy, breaking the singleton guarantee."
+    },
+    {
+      "type": "gotcha",
+      "question": "What happens when you serialize an enum singleton versus a traditional object singleton?",
+      "model_answer": "For enums, Java only serializes the enum constant's name. During deserialization, `Enum.valueOf()` is used to resolve the existing constant, guaranteeing identical identity without needing `readResolve()`. For standard objects, a new instance is allocated unless `readResolve()` overrides it."
+    },
+    {
+      "type": "applied",
+      "question": "How would you implement lazy-initialization for a singleton without synchronization overhead if you cannot use an enum?",
+      "model_answer": "Use the Bill Pugh Initialization-on-demand holder idiom: define a private static inner class that holds the singleton instance. The inner class is not loaded into memory until `getInstance()` is called, giving thread-safe lazy initialization guaranteed by class loading semantics without explicit synchronization."
+    }
+  ]
+}
