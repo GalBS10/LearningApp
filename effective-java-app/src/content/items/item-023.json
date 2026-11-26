@@ -1,0 +1,95 @@
+{
+  "item_number": 23,
+  "title": "Prefer class hierarchies to tagged classes",
+  "concept": "Occasionally you may run into a class whose instances come in two or more flavors and contain a 'tag' field indicating the flavor of the instance (e.g. a Shape class containing a tag enum for RECTANGLE vs CIRCLE). Tagged classes are cluttered with boilerplate (tag enums, switch statements, irrelevant fields for the current flavor), waste memory, cannot enforce final fields cleanly, and are horribly error-prone when adding new flavors. A tagged class is merely a pale, clumsy imitation of a subtyping class hierarchy. Replace tagged classes with a clean class hierarchy.",
+  "wrong_code": {
+    "class": "// Clumsy, error-prone tagged class!\npublic class Figure {\n    enum Shape { RECTANGLE, CIRCLE };\n\n    // Tag field\n    final Shape shape;\n\n    // Fields used only for RECTANGLE\n    double length;\n    double width;\n\n    // Field used only for CIRCLE\n    double radius;\n\n    // Constructor for circle\n    Figure(double radius) {\n        shape = Shape.CIRCLE;\n        this.radius = radius;\n    }\n\n    // Constructor for rectangle\n    Figure(double length, double width) {\n        shape = Shape.RECTANGLE;\n        this.length = length;\n        this.width = width;\n    }\n\n    double area() {\n        switch(shape) {\n            case RECTANGLE: return length * width;\n            case CIRCLE:    return Math.PI * (radius * radius);\n            default: throw new AssertionError(shape);\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Figure f = new Figure(5.0);\n        // Memory wasted on unused length and width fields,\n        // and adding TRIANGLE requires editing every switch statement in the class!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Clean class hierarchy: subtyping eliminates boilerplate and switches\npublic abstract class Figure {\n    abstract double area();\n}\n\npublic final class Circle extends Figure {\n    private final double radius;\n\n    public Circle(double radius) {\n        this.radius = radius;\n    }\n\n    @Override\n    double area() { return Math.PI * (radius * radius); }\n}\n\npublic final class Rectangle extends Figure {\n    private final double length;\n    private final double width;\n\n    public Rectangle(double length, double width) {\n        this.length = length;\n        this.width = width;\n    }\n\n    @Override\n    double area() { return length * width; }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Figure circle = new Circle(5.0);\n        Figure rect = new Rectangle(4.0, 6.0);\n        System.out.println(\"Circle area: \" + circle.area());\n        System.out.println(\"Rect area: \" + rect.area());\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What should you do when you see a class with an enum tag and switch statements based on that tag?",
+    "back": "Refactor it into a class hierarchy! Make the tagged class an abstract superclass, declare abstract methods for flavor-specific behavior, and create concrete subclasses for each flavor."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What are the major drawbacks of tagged classes?",
+    "back": "Boilerplate, memory bloat (fields irrelevant to one flavor must still exist in memory), lack of compile-time safety, inability to mark flavor-specific fields final, and having to update every switch statement when a new flavor is added."
+  },
+  "quiz": [
+    {
+      "question": "Why are fields in a tagged class difficult to make `final`?",
+      "options": [
+        "Constructors for one flavor must leave fields for other flavors uninitialized or initialized with dummy values",
+        "The compiler forbids final fields in classes with enums",
+        "Final fields cannot be evaluated in switch statements",
+        "Tagged classes are compiled to interfaces"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens when a developer adds a new flavor to a tagged class but forgets to update one of its internal switch statements?",
+      "options": [
+        "The class compiles without warning, but will fail with a runtime exception or silent corrupted output when the new flavor is used",
+        "The Java compiler throws an ExhaustivenessError",
+        "The JVM automatically synthesizes the missing case",
+        "All objects of the new flavor become null"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How does a class hierarchy improve memory efficiency compared to a tagged class?",
+      "options": [
+        "Each subclass instance only allocates memory for fields relevant to its specific type, eliminating unused field bloat",
+        "Class hierarchies compress byte arrays",
+        "Abstract classes do not occupy heap space",
+        "Subclasses bypass GC root tracing"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How do modern Java 17+ Sealed Classes (`sealed class Figure permits Circle, Rectangle`) elevate class hierarchies?",
+      "options": [
+        "They provide compiler-enforced exhaustiveness checks in switch expressions while preserving clean subclass encapsulation",
+        "They turn classes back into tagged classes",
+        "They disable inheritance globally",
+        "They force all classes to be singletons"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which object-oriented principle is directly violated by tagged classes?",
+      "options": [
+        "Open/Closed Principle (classes should be open for extension, but closed for modification)",
+        "Single Responsibility Principle only",
+        "Law of Demeter only",
+        "Interface Segregation Principle only"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why does Joshua Bloch describe tagged classes as 'verbose, error-prone, and inefficient'?",
+      "model_answer": "1. **Verbose**: Cluttered with enum declarations, tag fields, and switch statements.\n2. **Error-prone**: Adding a new flavor requires tracking down and editing every switch statement in the class; missing one causes runtime crashes.\n3. **Inefficient**: Instances allocate memory for every field across all flavors, even fields unused by the current instance."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "You see a `Message` class with `MessageType type;` where fields like `emailSubject` and `smsPhoneNumber` both sit in the same class. How do you refactor it?",
+      "model_answer": "Make `Message` an abstract class (or interface) with shared behavior. Create concrete subclasses `EmailMessage` (holding `emailSubject`) and `SmsMessage` (holding `smsPhoneNumber`). This guarantees fields are strictly relevant, `final`, and type-safe."
+    },
+    {
+      "type": "gotcha",
+      "question": "Are there any situations where a tagged class is justifiable in modern Java?",
+      "model_answer": "Almost never. In modern Java, Sealed Classes (`sealed interface Shape permits Circle, Rectangle`) combined with pattern matching for switch provide all the union-type exhaustiveness benefits of tagged classes while retaining full object-oriented polymorphism, encapsulation, and type safety."
+    },
+    {
+      "type": "applied",
+      "question": "How do sealed classes and pattern matching in Java 21 relate to tagged classes vs hierarchies?",
+      "model_answer": "Java 21 sealed hierarchies allow developers to write pattern-matching switches over a closed set of subtypes (`switch (shape) { case Circle c -> ...; case Rectangle r -> ...; }`). The compiler enforces exhaustiveness without needing a tag field, combining the best of functional algebraic data types with object-oriented hierarchies."
+    }
+  ]
+}

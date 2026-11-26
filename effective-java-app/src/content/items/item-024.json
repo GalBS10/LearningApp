@@ -1,0 +1,95 @@
+{
+  "item_number": 24,
+  "title": "Favor static member classes over nonstatic",
+  "concept": "A nested class is a class defined within another class. There are four kinds of nested classes: static member classes, nonstatic member classes (inner classes), anonymous classes, and local classes. If you declare a member class that does not require access to an enclosing instance, ALWAYS put the static modifier in its declaration. If you omit the static modifier, each instance of the member class will contain an invisible, extraneous reference to its enclosing instance. This reference wastes memory, increases construction time, and can cause silent, catastrophic memory leaks by preventing the enclosing instance from being garbage collected.",
+  "wrong_code": {
+    "class": "// Memory leak hazard: nonstatic inner class retains hidden reference to enclosing instance!\nimport java.util.ArrayList;\nimport java.util.List;\n\npublic class LargeDocument {\n    private byte[] largeContent = new byte[10_000_000]; // 10 MB buffer\n\n    // Flaw: nonstatic inner class implicitly holds LargeDocument.this!\n    public class DocumentSnippet {\n        private final String title;\n        public DocumentSnippet(String title) { this.title = title; }\n    }\n\n    public DocumentSnippet createSnippet(String title) {\n        return new DocumentSnippet(title);\n    }\n}",
+    "call_site": "import java.util.ArrayList;\nimport java.util.List;\n\npublic class Main {\n    public static void main(String[] args) {\n        List<Object> snippets = new ArrayList<>();\n        for (int i = 0; i < 1000; i++) {\n            LargeDocument doc = new LargeDocument();\n            // Each tiny snippet holds onto the entire 10MB LargeDocument instance!\n            snippets.add(doc.createSnippet(\"Summary \" + i));\n        }\n        // Crashes with java.lang.OutOfMemoryError: Java heap space!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Safe and efficient: static member class has NO reference to enclosing instance\npublic class LargeDocument {\n    private byte[] largeContent = new byte[10_000_000]; // 10 MB buffer\n\n    // Static: independent instance, zero reference to enclosing LargeDocument!\n    public static class DocumentSnippet {\n        private final String title;\n        public DocumentSnippet(String title) { this.title = title; }\n        public String getTitle() { return title; }\n    }\n\n    public DocumentSnippet createSnippet(String title) {\n        return new DocumentSnippet(title);\n    }\n}",
+    "call_site": "import java.util.ArrayList;\nimport java.util.List;\n\npublic class Main {\n    public static void main(String[] args) {\n        List<LargeDocument.DocumentSnippet> snippets = new ArrayList<>();\n        for (int i = 0; i < 1000; i++) {\n            LargeDocument doc = new LargeDocument();\n            snippets.add(doc.createSnippet(\"Summary \" + i));\n            // doc is completely eligible for garbage collection on every iteration!\n        }\n        System.out.println(\"Created \" + snippets.size() + \" snippets without memory leaks!\");\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "Why should a member class almost always be declared `static` unless it explicitly needs enclosing instance access?",
+    "back": "Nonstatic member classes contain a hidden reference to their enclosing instance. This reference consumes extra memory, slows down allocation, and causes memory leaks by keeping the outer instance alive."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "When is a nonstatic member class legitimately used?",
+    "back": "To define an Adapter that allows an instance of the outer class to be viewed as an instance of some unrelated class (e.g. Map.keySet(), Set.iterator(), List.subList())."
+  },
+  "quiz": [
+    {
+      "question": "What invisible reference does the Java compiler add to every instance of a nonstatic member class?",
+      "options": [
+        "A hidden reference to the enclosing outer class instance (`OuterClass.this`)",
+        "A reference to the JVM ClassLoader",
+        "A reference to the garbage collector thread",
+        "A pointer to the operating system process ID"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the primary danger of the hidden enclosing instance reference in nonstatic member classes?",
+      "options": [
+        "It can cause severe memory leaks by preventing the large enclosing instance from being garbage collected as long as the inner instance is retained",
+        "It causes compilation errors when using generics",
+        "It disables multi-threading in the outer class",
+        "It makes all outer class methods static"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What are the four distinct kinds of nested classes in Java?",
+      "options": [
+        "Static member class, nonstatic member class (inner class), anonymous class, and local class",
+        "Public, private, protected, and package-private classes",
+        "Interface, record, enum, and abstract class",
+        "Thread, Process, Runnable, and Future"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which type of nested class is commonly used to implement the Builder pattern (Item 2)?",
+      "options": [
+        "A public static member class",
+        "An anonymous inner class",
+        "A nonstatic member class",
+        "A local class inside a method"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the difference between an anonymous class and a local class?",
+      "options": [
+        "A local class has a name and can be used repeatedly within the enclosing method/block, whereas an anonymous class is declared and instantiated at the point of use with no name",
+        "Anonymous classes can have static members while local classes cannot",
+        "Local classes cannot access local final variables",
+        "Anonymous classes can implement multiple interfaces simultaneously"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Explain the difference in memory layout and lifecycle between a static member class and a nonstatic member class.",
+      "model_answer": "A `static` member class behaves like any top-level class that happens to be declared inside another for packaging convenience; its instances exist independently with no link to the outer class. A nonstatic member class instance cannot exist without an enclosing instance; the compiler inserts a synthetic `final OuterClass this$0;` field in every inner instance, linking its lifecycle inextricably to the outer instance."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "In an Android Activity, a developer creates `class DownloadTask extends AsyncTask` as a nonstatic inner class and initiates a long-running download. What notorious bug occurs when the user rotates the screen?",
+      "model_answer": "Rotating the screen destroys the old `Activity` and creates a new one. But the background thread in `DownloadTask` retains a hidden reference to the destroyed `Activity.this`. Because of this reference, the entire old Activity view hierarchy (bitmaps, views) cannot be garbage collected, causing a catastrophic memory leak. Declaring it `static` with a `WeakReference<Activity>` solves the issue."
+    },
+    {
+      "type": "gotcha",
+      "question": "Can an anonymous class implement multiple interfaces or extend a class AND implement an interface?",
+      "model_answer": "No. An anonymous class can only extend one class OR implement one single interface at the point of instantiation. It cannot implement multiple interfaces or both extend a class and implement an interface."
+    },
+    {
+      "type": "applied",
+      "question": "How did Java 8 lambdas affect the use of anonymous classes?",
+      "model_answer": "Prior to Java 8, anonymous classes were the primary way to pass small functions (like `Runnable` or `Comparator`). Lambdas and method references replaced almost all of those use cases because lambdas are vastly more concise, do not create unnecessary `.class` files, and do not unconditionally capture enclosing instance references unless `this` is explicitly referenced."
+    }
+  ]
+}

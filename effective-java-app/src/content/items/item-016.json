@@ -1,0 +1,95 @@
+{
+  "item_number": 16,
+  "title": "In public classes, use accessor methods, not public fields",
+  "concept": "Occasionally, a temptation arises to write degenerate classes that do nothing but hold fields (data structs). If such a class is public, its fields must never be exposed directly. Exposing mutable fields directly sacrifices all benefits of encapsulation: you cannot change the internal data representation without breaking binary compatibility, cannot enforce invariants (like preventing negative values), and cannot take auxiliary action when a field is accessed or modified. For package-private or private nested classes, exposing fields directly is acceptable and sometimes desirable to reduce visual boilerplate.",
+  "wrong_code": {
+    "class": "// Degenerate point class with public fields — violates encapsulation!\npublic class Point {\n    public double x;\n    public double y;\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Point p = new Point();\n        p.x = 10.5;\n        p.y = 20.2;\n        // Problems:\n        // 1. Cannot change to polar coordinates (r, theta) without breaking all clients!\n        // 2. Cannot enforce coordinate limits (e.g. non-negative).\n        // 3. Not thread-safe.\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Encapsulated value class with private fields and accessors\npublic class Point {\n    private double x;\n    private double y;\n\n    public Point(double x, double y) {\n        this.x = x;\n        this.y = y;\n    }\n\n    public double getX() { return x; }\n    public double getY() { return y; }\n\n    public void setX(double x) { this.x = x; }\n    public void setY(double y) { this.y = y; }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Point p = new Point(10.5, 20.2);\n        System.out.println(\"X: \" + p.getX() + \", Y: \" + p.getY());\n        // The internal representation can now change freely\n        // without affecting client code!\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "Why should fields in public classes always be private with public getters/setters?",
+    "back": "To preserve encapsulation: it allows you to change internal data representations, enforce validation invariants, and maintain binary API compatibility without breaking clients."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "When is it acceptable for a class to expose fields directly?",
+    "back": "When the class is package-private or a private nested class. Because access is confined within the package or enclosing class, refactoring causes no external API breakage."
+  },
+  "quiz": [
+    {
+      "question": "What is the primary danger of exposing public mutable fields in a public API class?",
+      "options": [
+        "You lock yourself into that specific internal representation forever and cannot enforce invariants on field values",
+        "It prevents the JVM from compiling the code to bytecode",
+        "It prevents objects from being garbage collected",
+        "Public fields cannot be accessed by multi-threaded code"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Is it ever acceptable for a public class to expose public fields if they are `final`?",
+      "options": [
+        "While less harmful than mutable fields, it still binds the API to the internal representation and prevents auxiliary actions on read",
+        "Yes, public final fields never have any drawbacks",
+        "Only if the field is a mutable array",
+        "No, the Java compiler forbids public final fields"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why is exposing fields directly in package-private or private nested classes acceptable?",
+      "options": [
+        "The scope is strictly bounded to the package or file, so changing field names or types will not break external clients",
+        "The JVM treats package-private fields as immutable automatically",
+        "Package-private classes cannot be loaded by classloaders",
+        "It generates faster assembly instructions"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which classes in the Java standard library famously violated this rule, exposing public mutable fields with regret?",
+      "options": [
+        "java.awt.Point and java.awt.Dimension",
+        "java.lang.String and java.lang.Integer",
+        "java.util.ArrayList and java.util.HashMap",
+        "java.io.File and java.io.InputStream"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How do modern Java Records (Java 16+) implement this principle for immutable data carriers?",
+      "options": [
+        "Fields are automatically private final, and public accessor methods (e.g. point.x()) are generated automatically",
+        "Fields are public static",
+        "Fields are mutable by default",
+        "Records cannot contain data"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "What are the core arguments against public fields in public classes?",
+      "model_answer": "1. **Loss of flexibility**: The internal representation cannot be altered without changing the public API.\n2. **No invariant enforcement**: Any external caller can assign illegal or corrupting values.\n3. **No side effects**: You cannot fire change events, log modifications, or implement lazy evaluation upon access."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A team creates a public class `Dimension` with `public int width; public int height;` to avoid getter boilerplate. Why did Java's AWT designers later express deep regret over this exact design in `java.awt.Dimension`?",
+      "model_answer": "Because `width` and `height` were public, the AWT team could never change how dimensions were tracked internally (e.g. supporting floating point precision or high-DPI scaling). Furthermore, whenever a component returned its `Dimension`, it had to allocate a new defensive copy every single time to prevent clients from mutating the component's internal dimensions!"
+    },
+    {
+      "type": "gotcha",
+      "question": "Does having getters and setters introduce a performance overhead compared to direct field access?",
+      "model_answer": "In modern JVMs, almost never. The Just-In-Time (JIT) compiler will aggressively inline simple getter and setter method calls into direct memory reads and writes, achieving the exact same machine-code performance with zero method call overhead."
+    },
+    {
+      "type": "applied",
+      "question": "How do tools like Project Lombok (`@Getter`, `@Setter`, `@Value`) change how developers approach accessor boilerplate?",
+      "model_answer": "Lombok synthesizes private fields with public accessors at compile time via annotation processing. This gives developers the syntactic brevity of plain data fields without sacrificing encapsulation or binary compatibility."
+    }
+  ]
+}

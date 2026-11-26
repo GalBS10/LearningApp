@@ -90,7 +90,18 @@ Generate remaining lessons following the standard lesson schema (`LessonContent`
   - [x] Item 12: Always override toString
   - [x] Item 13: Override clone judiciously
   - [x] Item 14: Consider implementing Comparable
-- [ ] **Chapter 4 (Items 15–25)**: Classes and Interfaces
+- [x] **Chapter 4 (Items 15–25 COMPLETE)**: Classes and Interfaces
+  - [x] Item 15: Minimize the accessibility of classes and members
+  - [x] Item 16: In public classes, use accessor methods, not public fields
+  - [x] Item 17: Minimize mutability
+  - [x] Item 18: Favor composition over inheritance
+  - [x] Item 19: Design and document for inheritance or else prohibit it
+  - [x] Item 20: Prefer interfaces to abstract classes
+  - [x] Item 21: Design interfaces for posterity
+  - [x] Item 22: Use interfaces only to define types
+  - [x] Item 23: Prefer class hierarchies to tagged classes
+  - [x] Item 24: Favor static member classes over nonstatic
+  - [x] Item 25: Limit source files to a single top-level class
 - [ ] **Chapter 5 (Items 26–33)**: Generics
 - [ ] **Chapter 6 (Items 34–41)**: Enums and Annotations
 - [ ] **Chapter 7 (Items 42–48)**: Lambdas and Streams

@@ -1,0 +1,95 @@
+{
+  "item_number": 21,
+  "title": "Design interfaces for posterity",
+  "concept": "Prior to Java 8, it was impossible to add methods to an interface without breaking all existing implementations. Java 8 added default methods, but while default methods make it possible to add methods to existing interfaces, doing so is full of peril. A default method will be injected into all existing implementations without their knowledge or consent, and there is no guarantee that a generic default implementation will maintain the class invariants of all pre-existing implementations (e.g. synchronized collections or thread safety). Therefore, careful interface design before release remains paramount.",
+  "wrong_code": {
+    "class": "// Java 8 added Collection.removeIf(Predicate) as a default method.\n// Apache Commons SynchronizedCollection extended Collection, but did NOT override removeIf.\n// When clients called removeIf on the synchronized collection, the default method ran WITHOUT locking!\nimport java.util.Collection;\nimport java.util.Objects;\nimport java.util.function.Predicate;\n\npublic interface LegacyCollection<E> {\n    // Added in newer version as a default method:\n    default boolean removeIf(Predicate<? super E> filter) {\n        Objects.requireNonNull(filter);\n        boolean result = false;\n        // Iterates and modifies without synchronization!\n        for (java.util.Iterator<E> each = iterator(); each.hasNext(); ) {\n            if (filter.test(each.next())) {\n                each.remove();\n                result = true;\n            }\n        }\n        return result;\n    }\n    java.util.Iterator<E> iterator();\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // A synchronized wrapper collection from Java 7 invoked removeIf in Java 8:\n        // -> Concurrency failure / ConcurrentModificationException!\n        // The default method had no idea the wrapper required a synchronized block!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Safe practice: Test interfaces thoroughly with multiple implementations before shipping,\n// and use default methods primarily to ease implementation of NEW interfaces, not to casually modify existing ones.\nimport java.util.function.Predicate;\n\npublic interface SafeCollection<E> {\n    boolean removeIf(Predicate<? super E> filter);\n}\n\n// Synchronized implementations must explicitly synchronize:\npublic class SafeSynchronizedCollection<E> implements SafeCollection<E> {\n    private final Object lock = new Object();\n\n    @Override\n    public boolean removeIf(Predicate<? super E> filter) {\n        synchronized (lock) {\n            // Safe synchronized execution guaranteed!\n            return true;\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        SafeSynchronizedCollection<String> col = new SafeSynchronizedCollection<>();\n        col.removeIf(String::isEmpty); // Thread-safe and reliable\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "Why is adding a default method to an existing interface risky?",
+    "back": "Because the default method may not satisfy the invariants of existing third-party implementations (e.g. breaking thread synchronization or failing with runtime exceptions)."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What should you do before releasing a public interface to the world?",
+    "back": "Test it rigorously by creating at least three diverse, independent implementations to verify its design before it becomes frozen in stone."
+  },
+  "quiz": [
+    {
+      "question": "What famous bug occurred in Apache Commons Collections when Java 8 introduced the `removeIf` default method to `java.util.Collection`?",
+      "options": [
+        "Synchronized collection wrappers failed to synchronize on the lock during removeIf, causing race conditions and ConcurrentModificationExceptions",
+        "It caused a JVM OutOfMemoryError",
+        "It deleted all elements in the collection unconditionally",
+        "The compiler refused to load the bytecode"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Does a default method compile into an interface if it conflicts with another default method from a second implemented interface?",
+      "options": [
+        "No, the compiler emits an error requiring the implementing class to explicitly override and resolve the conflict",
+        "The JVM chooses whichever method was declared first alphabetically",
+        "The JVM picks the implementation from the larger interface",
+        "It compiles but throws an AbstractMethodError at runtime"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the primary intended use case for default methods according to Effective Java?",
+      "options": [
+        "To provide standard implementations of non-primitive methods when designing NEW interfaces, rather than casually modifying existing ones",
+        "To turn interfaces into concrete classes",
+        "To replace unit tests",
+        "To avoid creating class files"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Can default methods be used to remove or rename existing methods in an interface?",
+      "options": [
+        "No, default methods can only add new method implementations; they cannot delete or rename methods",
+        "Yes, by marking the old method with @DeprecatedDefault",
+        "Yes, in Java 11+",
+        "Only if the interface is package-private"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why is it virtually impossible to fix a fundamentally flawed public interface after release?",
+      "options": [
+        "Changing or removing methods breaks binary and source compatibility for all external client applications",
+        "The JVM enforces digital signatures on all interfaces",
+        "Interfaces cannot be modified after compilation",
+        "Package managers reject updated interfaces"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "What does Joshua Bloch mean by 'design interfaces for posterity'?",
+      "model_answer": "Once a public interface is released and adopted by external clients, modifying it without breaking existing code is nearly impossible. While Java 8 added default methods to reduce breakage, default methods can still corrupt class invariants at runtime. Therefore, interfaces must be designed with extreme care, foresight, and testing prior to release."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A library developer adds `default void audit() { ... }` to an interface implemented by security-sensitive classes. What risk does this create?",
+      "model_answer": "Classes implementing the interface may assume that all methods are audited via a custom logging proxy or security wrapper. The newly injected default method bypasses those security wrappers unless third-party authors explicitly discover and override it."
+    },
+    {
+      "type": "gotcha",
+      "question": "What happens when a class inherits a concrete method from a superclass and a default method with the same signature from an interface?",
+      "model_answer": "The 'Class Wins' rule applies: the superclass's method implementation always takes precedence over the interface's default method. Interface default methods are never chosen over concrete class implementations."
+    },
+    {
+      "type": "applied",
+      "question": "How should an API author test an interface before releasing it to production?",
+      "model_answer": "Write at least three distinct, highly varied implementations of the interface (e.g. in-memory, file-backed, mock) and write multiple client applications that use the interface. This will immediately expose missing methods, awkward signatures, or over-constrained parameters before the API is set in stone."
+    }
+  ]
+}

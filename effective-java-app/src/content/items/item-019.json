@@ -1,0 +1,90 @@
+{
+  "item_number": 19,
+  "title": "Design and document for inheritance or else prohibit it",
+  "concept": "Designing a class for inheritance requires careful, explicit documentation of self-use of overridable methods. For each public or protected method, the documentation must indicate which overridable methods it invokes, in what sequence, and how the results affect processing (the @implSpec tag in Javadoc). Furthermore, constructors must NEVER invoke overridable methods, directly or indirectly, because the superclass constructor runs before the subclass constructor has initialized its instance fields. If a class is not specifically designed and documented for subclassing, inheritance should be strictly prohibited by marking the class final or making constructors private/package-private with static factories.",
+  "wrong_code": {
+    "class": "// Severe bug: Constructor calls an overridable method!\npublic class Super {\n    // Broken: constructor calls overridable method!\n    public Super() {\n        overrideMe();\n    }\n    public void overrideMe() {}\n}\n\nimport java.time.Instant;\n\npublic class Sub extends Super {\n    // Field initialized at subclass construction time\n    private final Instant instant;\n\n    public Sub() {\n        instant = Instant.now();\n    }\n\n    // Overriding method will be called by Super constructor\n    // BEFORE the Sub constructor has initialized 'instant'!\n    @Override\n    public void overrideMe() {\n        System.out.println(\"Instant: \" + instant.toString());\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Super() runs -> calls overrideMe() -> instant is null -> NullPointerException!\n        Sub sub = new Sub();\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Robust design 1: Prohibit inheritance by marking the class final\npublic final class SafeService {\n    private final String config;\n\n    public SafeService(String config) {\n        this.config = config;\n    }\n\n    public void performAction() {\n        // Reliable execution with no risk of rogue overrides\n    }\n}\n\n// Robust design 2: If subclassing is required, constructors do not invoke overridables\npublic abstract class BaseService {\n    public BaseService() {\n        // Safe: NO overridable methods called during construction!\n    }\n\n    /**\n     * @implSpec This implementation invokes {@link #validate()} before execution.\n     */\n    public void execute() {\n        validate();\n        run();\n    }\n\n    protected abstract void validate();\n    protected abstract void run();\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        SafeService service = new SafeService(\"production\");\n        service.performAction(); // Deterministic and secure\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What is the golden rule for constructors in classes designed for inheritance?",
+    "back": "Constructors must NEVER invoke overridable methods, directly or indirectly. The superclass constructor runs before the subclass constructor initializes fields, causing NullPointerExceptions or data corruption."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What should you do with a class that was not explicitly designed and documented for inheritance?",
+    "back": "Prohibit subclassing! Declare the class final, or make all constructors private/package-private and provide static factories."
+  },
+  "quiz": [
+    {
+      "question": "What happens if a superclass constructor invokes an overridable method that is overridden in a subclass?",
+      "options": [
+        "The subclass method executes before the subclass constructor has run, reading uninitialized fields (null or zero)",
+        "The JVM throws a ConstructorInvocationException at compile time",
+        "The superclass method executes instead",
+        "The JVM halts immediately"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which Javadoc tag was introduced in Java 8 to describe the self-use implementation details of an inheritable method?",
+      "options": ["@implSpec", "@designPattern", "@subclassRule", "@selfUse"],
+      "correct_index": 0
+    },
+    {
+      "question": "How should a class designer test whether their class is genuinely and safely designed for inheritance?",
+      "options": [
+        "By writing and maintaining at least 3 diverse subclasses before releasing the class to production",
+        "By running unit tests using reflection",
+        "By marking every method protected",
+        "By implementing Cloneable"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Do neither `Cloneable` nor `Serializable` pose special challenges when designing for inheritance?",
+      "options": [
+        "Both clone() and readObject() behave like constructors: neither must invoke an overridable method before the object is fully reconstituted",
+        "Neither affects inheritance in any way",
+        "Classes designed for inheritance must never implement either interface",
+        "They are automatically disabled for subclasses"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the best way to prohibit subclassing in an ordinary concrete class?",
+      "options": [
+        "Declare the class with the `final` keyword",
+        "Make all fields volatile",
+        "Make the class abstract",
+        "Override equals() to return false"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why must constructors never invoke overridable methods in Java?",
+      "model_answer": "In Java's object initialization lifecycle, superclass constructors execute *before* subclass constructors and instance field initializers. If a superclass constructor invokes an overridable method, the overriding subclass implementation will execute while its own instance fields are still `null` (or 0/false), easily leading to crashes or silent data corruption."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer writes a custom collection superclass with `public boolean addAll(Collection c) { for (Object o : c) add(o); return true; }` without documenting that `addAll` relies on `add`. Why is this undocumented self-use dangerous for subclasses?",
+      "model_answer": "Subclasses cannot know whether overriding `add` will affect `addAll`. If a subclass overrides `add` (e.g. to count elements) and also overrides `addAll`, elements might be double-counted or bypassed depending on internal implementation details that could change in future releases."
+    },
+    {
+      "type": "gotcha",
+      "question": "How does `readObject()` in a `Serializable` superclass present the exact same hazard as a constructor?",
+      "model_answer": "`readObject()` acts as a surrogate deserialization constructor. If `readObject()` invokes an overridable method, the method will run before the subclass's `readObject()` has deserialized the subclass's fields, exposing uninitialized state."
+    },
+    {
+      "type": "applied",
+      "question": "How can you allow safe subclassing if you have a class that calls internal helper methods?",
+      "model_answer": "Eliminate self-use of overridable methods mechanically: move the body of each overridable method to a private helper method. In the public methods, invoke the private helper. Subclasses can still override the public method, but internal callers invoke the unchanging private helper."
+    }
+  ]
+}

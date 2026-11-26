@@ -1,0 +1,95 @@
+{
+  "item_number": 25,
+  "title": "Limit source files to a single top-level class",
+  "concept": "While the Java compiler lets you define multiple top-level classes in a single source file (.java), doing so provides no benefits and carries enormous risks. Putting multiple top-level classes in a single file makes it possible to provide multiple, conflicting definitions for a class depending on the order in which source files are passed to the compiler. The behavior of your program can literally depend on the order in which files are compiled. The rule is simple: never put multiple top-level classes or interfaces in a single source file. If multiple classes must reside in one file, make them static member classes.",
+  "wrong_code": {
+    "class": "// File: Main.java containing two top-level classes!\n// Danger: Another file (e.g. Desert.java) might also define Utensil or Dessert!\nclass Utensil {\n    static final String NAME = \"pan\";\n}\n\nclass Dessert {\n    static final String NAME = \"cake\";\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println(Utensil.NAME + \" \" + Dessert.NAME);\n    }\n}",
+    "call_site": "// If another file Dessert.java also defines Utensil and Dessert:\n// javac Main.java Dessert.java -> prints: \"pan cake\"\n// javac Dessert.java Main.java -> prints: \"pot pie\"!\n// Compiling code in different order changes the program behavior completely!"
+  },
+  "right_code": {
+    "class": "// Clean solution 1: Put each top-level class into its own file (Utensil.java, Dessert.java)\n// Clean solution 2: If classes are small helpers, make them static member classes inside the main class!\npublic class SafeMain {\n    private static class Utensil {\n        static final String NAME = \"pan\";\n    }\n\n    private static class Dessert {\n        static final String NAME = \"cake\";\n    }\n\n    public static void main(String[] args) {\n        System.out.println(Utensil.NAME + \" \" + Dessert.NAME); // Deterministic always!\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        SafeMain.main(args); // Consistent, safe, completely immune to compile order variations\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "Why should you never declare multiple top-level classes in a single .java source file?",
+    "back": "It creates the risk of duplicate class definitions across files where the compiled program's behavior depends arbitrarily on the command-line order in which files are passed to javac."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What is the alternative if you want multiple related helper classes in the same file?",
+    "back": "Declare them as static member classes (static inner classes) inside the primary class, preferably marked private or package-private."
+  },
+  "quiz": [
+    {
+      "question": "What is the primary danger of placing multiple top-level classes in a single source file?",
+      "options": [
+        "The compiler may accept conflicting duplicate class definitions whose resolution depends on the order files are passed to javac",
+        "It causes the JVM to run in interpreted mode only",
+        "It prevents the file from containing methods",
+        "The garbage collector crashes"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How many `public` top-level classes can exist in a single Java source file?",
+      "options": [
+        "At most one, and the filename must match the name of the public class exactly",
+        "As many as you want",
+        "None",
+        "Two, if they are both abstract"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "If you have small helper classes tightly coupled to a single class, where should they live?",
+      "options": [
+        "As private static member classes inside that single class",
+        "In a separate package called 'helpers'",
+        "In the default package",
+        "Inside an interface constant"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if you run `javac Main.java Dessert.java` versus `javac Dessert.java Main.java` when both files contain package-private definitions for class `Utensil`?",
+      "options": [
+        "The compiler uses whichever definition it encounters first, leading to non-deterministic binary output and silent bugs",
+        "The compiler throws a DuplicateClassDefError in all cases",
+        "Both files are deleted automatically",
+        "The JVM ignores both classes"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Does placing multiple top-level classes in a single file reduce the number of `.class` files generated?",
+      "options": [
+        "No, the Java compiler always produces one separate .class file for every top-level or member class regardless of source file layout",
+        "Yes, it bundles them into a single .class file",
+        "It generates a JAR file directly",
+        "It generates a .class.tar archive"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is the rule 'Limit source files to a single top-level class' important for enterprise build systems?",
+      "model_answer": "In large enterprise builds (using Maven, Gradle, or Bazel), incremental compilation tools and parallel compilers analyze and compile changed files in unpredictable order. Multiple top-level classes in single files can cause build outputs to change arbitrarily depending on compilation order or build caching, leading to irreproducible builds and phantom bugs."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer puts two package-private classes `class Order` and `class LineItem` in `Order.java` to 'keep related code together'. What is the clean, idiomatically correct alternative?",
+      "model_answer": "Either split `LineItem` into its own `LineItem.java` file, or if `LineItem` is an implementation detail solely used by `Order`, nest it inside `Order` as a `public static class LineItem` or `private static class LineItem`."
+    },
+    {
+      "type": "gotcha",
+      "question": "Does the Java compiler forbid having multiple non-public top-level classes in a single file?",
+      "model_answer": "No! The compiler allows it (only restricting that at most one class per file can be `public`). That it is syntactically legal is precisely why it is such an insidious trap: the code compiles without warnings, but creates order-of-compilation vulnerabilities."
+    },
+    {
+      "type": "applied",
+      "question": "How do modern IDEs (IntelliJ, Eclipse) and linters (Checkstyle, SonarQube) handle multiple top-level classes?",
+      "model_answer": "Standard linters include rules (like Checkstyle's `OneTopLevelClass`) that flag files containing multiple top-level classes as policy violations. IDE refactorings often provide automated quick-fixes to 'Move class to its own file'."
+    }
+  ]
+}

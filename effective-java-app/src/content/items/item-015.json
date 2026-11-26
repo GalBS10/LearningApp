@@ -1,0 +1,95 @@
+{
+  "item_number": 15,
+  "title": "Minimize the accessibility of classes and members",
+  "concept": "Information hiding (encapsulation) is one of the fundamental tenets of good software design. It decouples the components that comprise a system, allowing them to be developed, tested, optimized, understood, and modified in isolation. The rule of thumb is simple: make each class or member as inaccessible as possible. Public classes should have no public fields (except static final constants of immutable objects), and public static final array fields are almost always a major security flaw because non-zero length arrays are always mutable.",
+  "wrong_code": {
+    "class": "// Security flaw: public static final array is MUTABLE!\n// Callers can modify the elements of the array directly.\npublic class SecurityConstants {\n    // POTENTIAL SECURITY HOLE!\n    public static final String[] PRIVILEGED_ROLES = {\n        \"ADMIN\", \"SUPERUSER\", \"OPERATOR\"\n    };\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Malicious client or buggy code mutates the 'constant' array:\n        SecurityConstants.PRIVILEGED_ROLES[0] = \"GUEST\";\n        // Now GUEST is treated as an ADMIN throughout the system!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Safe alternative 1: Private array + public unmodifiable List\n// Safe alternative 2: Private array + clone() accessor\nimport java.util.Arrays;\nimport java.util.Collections;\nimport java.util.List;\n\npublic class SecurityConstants {\n    private static final String[] PRIVATE_ROLES = {\n        \"ADMIN\", \"SUPERUSER\", \"OPERATOR\"\n    };\n\n    // Solution 1: Public unmodifiable List\n    public static final List<String> PRIVILEGED_ROLES =\n        Collections.unmodifiableList(Arrays.asList(PRIVATE_ROLES));\n\n    // Solution 2: Public method returning defensive copy\n    public static final String[] getRoles() {\n        return PRIVATE_ROLES.clone();\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Attempting to modify throws UnsupportedOperationException:\n        // SecurityConstants.PRIVILEGED_ROLES.set(0, \"GUEST\");\n\n        // Or with array clone, modifying the clone does not affect the original:\n        String[] roles = SecurityConstants.getRoles();\n        roles[0] = \"GUEST\";\n        System.out.println(SecurityConstants.PRIVILEGED_ROLES.get(0)); // Still \"ADMIN\"!\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What access level should you choose when declaring a member or class?",
+    "back": "The lowest possible access level: start with private. If another class in the same package needs access, make it package-private. Only make it protected or public if it is part of the exported API."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Why is `public static final Thing[] VALUES = { ... };` almost always a critical design bug?",
+    "back": "Because arrays in Java are always mutable! While the reference `VALUES` cannot be reassigned, the contents `VALUES[i]` can be modified by any client in the JVM. Use `Collections.unmodifiableList` or return defensive clones."
+  },
+  "quiz": [
+    {
+      "question": "What is the four-level access control hierarchy in Java, ordered from least to most accessible?",
+      "options": [
+        "private, package-private (default), protected, public",
+        "private, protected, package-private, public",
+        "package-private, private, protected, public",
+        "private, internal, protected, public"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if a method overrides a superclass method regarding access level modifiers?",
+      "options": [
+        "The overriding method cannot have a more restrictive access level than the superclass method (Liskov Substitution Principle)",
+        "The overriding method must have the exact same modifier",
+        "The overriding method can be private regardless of superclass access",
+        "Overriding methods do not inherit access rules"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Under what circumstance may a public class have a public field?",
+      "options": [
+        "Only when the field is static final and refers to an immutable object or primitive value",
+        "Whenever the field is marked volatile",
+        "When the class implements Serializable",
+        "Whenever the field is a non-empty array"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How did Java 9's Module System (JPMS) expand access control boundaries?",
+      "options": [
+        "A public class or member in a module is only accessible outside the module if its package is explicitly exported in module-info.java",
+        "It removed the package-private modifier",
+        "It made all private fields accessible globally",
+        "It replaced protected with internal"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is an acceptable reason to broaden an access level from private to package-private?",
+      "options": [
+        "To allow a package-adjacent unit test to inspect or exercise internal state",
+        "To allow any arbitrary external library to modify the field",
+        "To improve garbage collection throughput",
+        "To enable JIT compilation"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is information hiding (encapsulation) so crucial to building large software systems?",
+      "model_answer": "Encapsulation decouples components, allowing each to be modified, tested, profiled, and reasoned about independently. It enables parallel team development, isolates bugs, allows safe internal optimizations without breaking client code, and reduces security attack surfaces."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A library contains `public static final String[] ALLOWED_IPS = {\"10.0.0.1\", \"10.0.0.2\"};`. What security hazard exists?",
+      "model_answer": "The `final` keyword only prevents reassigning the `ALLOWED_IPS` array reference; it does not protect the array contents. Any external code in the JVM can execute `ALLOWED_IPS[0] = \"192.168.1.1\"` and overwrite authorized IP addresses, completely bypassing firewall checks."
+    },
+    {
+      "type": "gotcha",
+      "question": "Why shouldn't you make a member `protected` lightly?",
+      "model_answer": "A protected member is part of the class's exported public API because anyone can subclass your class and access it. Furthermore, protected members in Java are accessible to all other classes in the same package. Once declared protected, you must maintain and support it indefinitely."
+    },
+    {
+      "type": "applied",
+      "question": "What are the two safe alternatives to public array constants?",
+      "model_answer": "1. Make the array private and expose a `public static final List<T>` wrapped with `Collections.unmodifiableList(Arrays.asList(ARRAY))` (or `List.of(...)` in Java 9+).\n2. Make the array private and expose a public accessor method that returns a defensive copy: `return ARRAY.clone();`."
+    }
+  ]
+}

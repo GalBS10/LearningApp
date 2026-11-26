@@ -1,0 +1,95 @@
+{
+  "item_number": 22,
+  "title": "Use interfaces only to define types",
+  "concept": "When a class implements an interface, the interface serves as a type that can be used to refer to instances of the class. It says something to clients about what they can do with instances of the class. It is inappropriate to define an interface for any other purpose. One notorious anti-pattern is the 'Constant Interface'—an interface consisting solely of static final constants. Implementing a constant interface leaks internal implementation details into the class's exported API and confuses users. To export constants, use an enum type or a noninstantiable utility class.",
+  "wrong_code": {
+    "class": "// The Constant Interface Anti-pattern: DO NOT USE!\npublic interface PhysicalConstants {\n    // Avogadro's number (1/mol)\n    static final double AVOGADROS_NUMBER   = 6.022_140_857e23;\n    // Boltzmann constant (J/K)\n    static final double BOLTZMANN_CONSTANT = 1.380_648_52e-23;\n    // Mass of the electron (kg)\n    static final double ELECTRON_MASS      = 9.109_383_56e-31;\n}\n\n// Bad: implementing the interface just to use the constants without qualification\npublic class ParticleCalculator implements PhysicalConstants {\n    public double calculateEnergy(double temperature) {\n        return 1.5 * BOLTZMANN_CONSTANT * temperature;\n    }\n    // PhysicalConstants constants are now part of ParticleCalculator's exported public API!\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Unintended consequence: client can access constants via ParticleCalculator!\n        double mass = ParticleCalculator.ELECTRON_MASS; // Leaks implementation detail!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Clean solution: Noninstantiable utility class with static import\npublic final class PhysicalConstants {\n    private PhysicalConstants() { throw new AssertionError(); } // Prevent instantiation\n\n    public static final double AVOGADROS_NUMBER   = 6.022_140_857e23;\n    public static final double BOLTZMANN_CONSTANT = 1.380_648_52e-23;\n    public static final double ELECTRON_MASS      = 9.109_383_56e-31;\n}\n\n// Use static imports for clean, uncluttered syntax without implementing anything!\nimport static PhysicalConstants.*;\n\npublic class ParticleCalculator {\n    public double calculateEnergy(double temperature) {\n        return 1.5 * BOLTZMANN_CONSTANT * temperature; // Clean and encapsulated!\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        ParticleCalculator calc = new ParticleCalculator();\n        System.out.println(calc.calculateEnergy(300.0));\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What is the only legitimate purpose of an interface in Java?",
+    "back": "To define a type that represents what clients can do with instances of the implementing class. Never use interfaces solely to hold constants."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "How should constants be exported if not through an interface?",
+    "back": "Use an enum type (if constants are strongly related values), a noninstantiable utility class (with private constructor), or bind them directly to the class or interface they strongly relate to."
+  },
+  "quiz": [
+    {
+      "question": "What is the primary flaw of the 'Constant Interface' anti-pattern?",
+      "options": [
+        "It leaks internal implementation details into the class's public API, committing all future subclasses to those constants forever",
+        "It prevents constants from being stored in memory",
+        "Constants in interfaces cannot be primitive types",
+        "It causes compilation errors in Java 8+"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which classes in the standard Java platform libraries famously incorporated the Constant Interface anti-pattern?",
+      "options": [
+        "java.io.ObjectStreamConstants and java.util.jar.Pack200",
+        "java.lang.Math and java.lang.StrictMath",
+        "java.util.Collections and java.util.Arrays",
+        "java.sql.Connection and java.sql.Statement"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What feature introduced in Java 5 made the Constant Interface anti-pattern completely obsolete for eliminating qualified names?",
+      "options": [
+        "Static imports (`import static com.example.Constants.*;`)",
+        "Generics",
+        "Enums",
+        "Annotations"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "If constants are strongly tied to an existing class or interface, where should they be placed?",
+      "options": [
+        "Directly inside that specific class or interface (e.g. Integer.MIN_VALUE)",
+        "In a separate package called 'constants'",
+        "In a properties file",
+        "In a ThreadLocal variable"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if a class implements a constant interface and in a future release no longer needs those constants?",
+      "options": [
+        "It cannot remove the `implements` declaration without breaking binary compatibility with clients that accessed constants via that class",
+        "The compiler automatically removes the unused constants",
+        "The class is automatically marked deprecated",
+        "Nothing happens"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is the Constant Interface considered an anti-pattern?",
+      "model_answer": "Interfaces are intended to define contracts and types for object instances. A constant interface contains no methods, only values. Implementing it pollutes the implementing class's namespace, leaks an implementation detail into the public API, confuses users with irrelevant constants, and locks the class into that interface forever for binary compatibility."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A junior developer creates `public interface AppConstants { String DB_URL = ...; }` and implements it in several service classes so they don't have to type `AppConstants.DB_URL`. What is the clean alternative?",
+      "model_answer": "Convert `AppConstants` into a `final` class with a `private` constructor. In the service classes, use `import static AppConstants.DB_URL;` (or `import static AppConstants.*;`). This yields identical short-syntax benefits without polluting the class hierarchy or public API."
+    },
+    {
+      "type": "gotcha",
+      "question": "Can constants ever be placed inside an interface legitimately?",
+      "model_answer": "Yes, but ONLY when those constants are intimately tied to the behavior defined by that interface (e.g. `java.time.temporal.TemporalField` declaring field identifiers used in the interface's methods). The anti-pattern specifically refers to interfaces containing *only* constants and no methods."
+    },
+    {
+      "type": "applied",
+      "question": "When should you use an enum instead of a utility class for constants?",
+      "model_answer": "Use an `enum` whenever the constants represent a fixed, closed set of related choices (e.g. `DayOfWeek`, `Direction`, `HttpStatus`). Use a utility class with `public static final` constants when values are arbitrary numerical or string constants that don't belong to a single enumerated type."
+    }
+  ]
+}

@@ -19,7 +19,17 @@ import item011 from './items/item-011.json';
 import item012 from './items/item-012.json';
 import item013 from './items/item-013.json';
 import item014 from './items/item-014.json';
+import item015 from './items/item-015.json';
+import item016 from './items/item-016.json';
 import item017 from './items/item-017.json';
+import item018 from './items/item-018.json';
+import item019 from './items/item-019.json';
+import item020 from './items/item-020.json';
+import item021 from './items/item-021.json';
+import item022 from './items/item-022.json';
+import item023 from './items/item-023.json';
+import item024 from './items/item-024.json';
+import item025 from './items/item-025.json';
 import item080 from './items/item-080.json';
 
 // ...continue for all 90 as they're generated
@@ -39,7 +49,17 @@ export const ALL_ITEMS: Lesson[] = [
   item012 as Lesson,
   item013 as Lesson,
   item014 as Lesson,
+  item015 as Lesson,
+  item016 as Lesson,
   item017 as Lesson,
+  item018 as Lesson,
+  item019 as Lesson,
+  item020 as Lesson,
+  item021 as Lesson,
+  item022 as Lesson,
+  item023 as Lesson,
+  item024 as Lesson,
+  item025 as Lesson,
   item080 as Lesson,
 ];
 

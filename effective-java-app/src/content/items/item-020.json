@@ -1,0 +1,95 @@
+{
+  "item_number": 20,
+  "title": "Prefer interfaces to abstract classes",
+  "concept": "Java provides two mechanisms to define types that permit multiple implementations: interfaces and abstract classes. Interfaces are vastly superior because: 1) Existing classes can easily be retrofitted to implement a new interface, whereas a class can only extend one abstract class due to single inheritance, 2) Interfaces are ideal for defining mixins (optional behaviors like Comparable), and 3) Interfaces allow the construction of nonhierarchical type frameworks. To combine the advantages of both, provide an interface accompanied by a skeletal implementation class (the AbstractInterface pattern).",
+  "wrong_code": {
+    "class": "// Rigid abstract class hierarchy: single inheritance blocks mixins and evolution!\npublic abstract class Singer {\n    abstract void sing();\n}\n\npublic abstract class Songwriter {\n    abstract void compose();\n}\n\n// Java DOES NOT allow extending multiple abstract classes!\n// A SingerSongwriter cannot extend both Singer and Songwriter!\n// public class SingerSongwriterImpl extends Singer, Songwriter { ... } // Compile error!\npublic class SingerSongwriterImpl extends Singer {\n    @Override void sing() {}\n    // Forced to duplicate or awkwardly simulate Songwriter functionality!\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Rigid inheritance makes flexible, multi-trait systems impossible\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Flexible interfaces with nonhierarchical composition and skeletal implementation\npublic interface Singer {\n    void sing();\n}\n\npublic interface Songwriter {\n    void compose();\n}\n\n// Clean interface extension\npublic interface SingerSongwriter extends Singer, Songwriter {\n    void strum();\n    default void performLive() {\n        compose();\n        sing();\n        strum();\n    }\n}\n\n// Skeletal implementation pattern (combines interface flexibility with code reuse)\npublic class FolkArtist implements SingerSongwriter {\n    @Override public void sing() { System.out.println(\"Singing a ballad...\"); }\n    @Override public void compose() { System.out.println(\"Composing acoustic tune...\"); }\n    @Override public void strum() { System.out.println(\"Strumming guitar...\"); }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        SingerSongwriter artist = new FolkArtist();\n        artist.performLive();\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "Why are interfaces preferred over abstract classes for defining types in Java?",
+    "back": "Because Java only supports single class inheritance. Classes can implement any number of interfaces, making interfaces ideal for mixins, retrofitting existing classes, and building nonhierarchical type frameworks."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What is a 'skeletal implementation' (AbstractInterface pattern)?",
+    "back": "An abstract class that implements an interface and provides default code for non-primitive methods (e.g. `AbstractList` for `List`), giving implementors the speed of an abstract class with the flexibility of an interface."
+  },
+  "quiz": [
+    {
+      "question": "What is the primary language restriction that makes abstract classes far more limiting than interfaces?",
+      "options": [
+        "Java allows single class inheritance only; any class extending an abstract class cannot extend any other class",
+        "Abstract classes cannot have constructors",
+        "Abstract classes cannot be used in generic type parameters",
+        "Abstract classes are deprecated in Java 17"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is a 'mixin' in object-oriented programming?",
+      "options": [
+        "A type that a class can implement in addition to its primary type to declare that it provides some optional behavior (e.g. Comparable)",
+        "A class with both static and instance fields",
+        "A method that accepts multiple variable arguments",
+        "A tool for combining multiple JAR files"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How did Java 8 default methods bridge the gap between interfaces and abstract classes?",
+      "options": [
+        "They allow interfaces to provide concrete method implementations, providing code reuse directly within the interface",
+        "They allow interfaces to define instance state fields",
+        "They enable multiple inheritance of class state",
+        "They eliminated the need for public methods"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is one thing an abstract class can do that an interface still CANNOT do even with default methods in Java 8+?",
+      "options": [
+        "Hold instance fields (state) and package-private or protected constructors/methods",
+        "Define static methods",
+        "Be extended by subclasses",
+        "Be used in polymorphism"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How are skeletal implementation classes traditionally named in the Java Collections Framework?",
+      "options": [
+        "AbstractInterface (e.g. AbstractSet, AbstractList, AbstractMap for Set, List, Map)",
+        "InterfaceBase",
+        "DefaultInterface",
+        "InterfaceSkeleton"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Compare interfaces and abstract classes in modern Java. When would you still choose an abstract class?",
+      "model_answer": "Interfaces are preferred for defining types because of multiple interface implementation, mixins, and default methods. An abstract class is only needed when you must share mutable instance state (instance fields) across subclasses or require non-public (protected/package-private) member access, which interfaces cannot provide."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A library author creates an abstract class `Vehicle` and later wants to add a mixin `Electric`. Why can't existing third-party vehicle classes easily adopt `Electric` if it's an abstract class?",
+      "model_answer": "Third-party classes that already extend another superclass (e.g. `Tesla extends LuxuryCar`) cannot extend `Electric` because Java does not permit multiple class inheritance. If `Electric` were an interface, `Tesla` could implement it with zero hierarchy friction."
+    },
+    {
+      "type": "gotcha",
+      "question": "Can an interface default method override `equals()`, `hashCode()`, or `toString()`?",
+      "model_answer": "No! The Java Language Specification explicitly forbids default methods from overriding methods of `java.lang.Object`. The class hierarchy (`Object`) always wins over interface default methods in method resolution."
+    },
+    {
+      "type": "applied",
+      "question": "What is 'simulated multiple inheritance' using skeletal implementations?",
+      "model_answer": "A class implements an interface and internally contains a private inner class that extends the skeletal implementation (e.g. extending `AbstractList`). The outer class forwards interface method calls to this inner class, achieving the code reuse of the abstract class while remaining free to extend a different superclass."
+    }
+  ]
+}

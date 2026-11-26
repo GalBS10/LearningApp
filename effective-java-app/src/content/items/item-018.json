@@ -1,0 +1,95 @@
+{
+  "item_number": 18,
+  "title": "Favor composition over inheritance",
+  "concept": "Inheritance is a powerful way to achieve code reuse, but it violates encapsulation when used across package boundaries on classes not explicitly designed and documented for extension. In an implementation inheritance relationship, the subclass depends on the implementation details of its superclass. If the superclass changes across releases (e.g. self-use of methods or adding new methods that collide with subclass invariants), the subclass can silently break. The solution is Composition: instead of extending an existing class, give your new class a private field referencing an instance of the existing class, and forward method calls.",
+  "wrong_code": {
+    "class": "// Fragile subclass: breaks due to unexpected self-use in superclass!\nimport java.util.Collection;\nimport java.util.HashSet;\nimport java.util.List;\n\npublic class InstrumentedHashSet<E> extends HashSet<E> {\n    private int addCount = 0;\n\n    @Override\n    public boolean add(E e) {\n        addCount++;\n        return super.add(e);\n    }\n\n    @Override\n    public boolean addAll(Collection<? extends E> c) {\n        addCount += c.size();\n        return super.addAll(c); // HashSet.addAll() internally calls add()!\n    }\n\n    public int getAddCount() { return addCount; }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        InstrumentedHashSet<String> s = new InstrumentedHashSet<>();\n        s.addAll(List.of(\"Snap\", \"Crackle\", \"Pop\"));\n        // Expected count: 3. Actual count: 6! Double counted because HashSet.addAll calls add()!\n        System.out.println(\"Add count: \" + s.getAddCount()); // Prints 6!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Robust solution: Composition + Forwarding (Decorator / Wrapper Pattern)\nimport java.util.Collection;\nimport java.util.HashSet;\nimport java.util.List;\nimport java.util.Set;\n\npublic class ForwardingSet<E> implements Set<E> {\n    private final Set<E> s;\n    public ForwardingSet(Set<E> s) { this.s = s; }\n\n    public int size() { return s.size(); }\n    public boolean isEmpty() { return s.isEmpty(); }\n    public boolean contains(Object o) { return s.contains(o); }\n    public boolean add(E e) { return s.add(e); }\n    public boolean addAll(Collection<? extends E> c) { return s.addAll(c); }\n    // ...forward remaining Set methods\n}\n\npublic class InstrumentedSet<E> extends ForwardingSet<E> {\n    private int addCount = 0;\n    public InstrumentedSet(Set<E> s) { super(s); }\n\n    @Override public boolean add(E e) { addCount++; return super.add(e); }\n    @Override public boolean addAll(Collection<? extends E> c) {\n        addCount += c.size();\n        return super.addAll(c); // Independent of Set implementation details!\n    }\n    public int getAddCount() { return addCount; }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Wraps ANY Set implementation (HashSet, TreeSet, LinkedHashSet)!\n        InstrumentedSet<String> s = new InstrumentedSet<>(new HashSet<>());\n        s.addAll(List.of(\"Snap\", \"Crackle\", \"Pop\"));\n        System.out.println(\"Add count: \" + s.getAddCount()); // Correctly prints 3!\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should you use inheritance vs composition?",
+    "back": "Inheritance is appropriate ONLY when a genuine 'is-a' relationship exists AND the subclass and superclass are in the same package or the superclass was specifically designed and documented for extension. In all other cases, favor composition ('has-a')."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What is the 'self-use' problem in implementation inheritance?",
+    "back": "When a superclass method internally calls another of its own methods (e.g. `addAll` calling `add`). If a subclass overrides both, the subclass method may execute twice, causing double counting or invariant corruption."
+  },
+  "quiz": [
+    {
+      "question": "Why did `InstrumentedHashSet.addAll()` double-count elements in the classic Effective Java example?",
+      "options": [
+        "HashSet's addAll method is implemented on top of its add method (self-use), which InstrumentedHashSet also overrode",
+        "HashSet creates two copies of each element",
+        "The JVM does not support overriding addAll()",
+        "It was executed concurrently by two threads"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the design pattern name for a class that holds an instance of another class and forwards method invocations to it with added behavior?",
+      "options": [
+        "Decorator (or Wrapper) pattern",
+        "Singleton pattern",
+        "Abstract Factory pattern",
+        "Flyweight pattern"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the only known disadvantage of wrapper classes (composition with forwarding)?",
+      "options": [
+        "The 'SELF problem': the wrapped object does not know about the wrapper, so callbacks pass references to the inner object instead of the wrapper",
+        "Wrapper classes consume 10x more heap memory",
+        "They cannot implement interfaces",
+        "They prevent garbage collection"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which standard Java library class notoriously violated 'favor composition over inheritance' by extending Vector instead of wrapping it?",
+      "options": [
+        "java.util.Stack",
+        "java.util.ArrayList",
+        "java.util.HashMap",
+        "java.util.LinkedList"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What question should an architect ask before deciding to extend class B with class A?",
+      "options": [
+        "Is every A genuinely and unconditionally a B? ('is-a' test)",
+        "Is A larger in memory than B?",
+        "Does B have more than three methods?",
+        "Can B be serialized to JSON?"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why does implementation inheritance violate encapsulation?",
+      "model_answer": "In implementation inheritance, a subclass is inextricably tied to the internal execution details of its superclass. If the author of the superclass changes how methods invoke one another (self-use) or adds new methods that conflict with subclass security policies or invariants, the subclass breaks silently through no fault of its own."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "Why is `java.util.Properties` extending `java.util.Hashtable<Object, Object>` considered one of Java's worst design flaws?",
+      "model_answer": "`Properties` is intended to store only String key-value pairs. Because it extends `Hashtable` rather than wrapping it, clients can call `properties.put(key, nonStringObject)` directly through the inherited `Hashtable` interface, corrupting internal properties invariants and breaking methods like `getProperty()`."
+    },
+    {
+      "type": "gotcha",
+      "question": "What is the 'SELF problem' with wrapper classes?",
+      "model_answer": "When a wrapped inner object passes `this` to a callback framework or event listener, it passes a reference to itself, completely bypassing the wrapper. If the client expects wrapper behaviors during callbacks, those behaviors are missed."
+    },
+    {
+      "type": "applied",
+      "question": "How does the Wrapper pattern provide vastly greater flexibility than subclassing a specific collection class?",
+      "model_answer": "An `InstrumentedSet<E>` wrapper that implements `Set<E>` can instrument *any* `Set` implementation (e.g. `HashSet`, `TreeSet`, `ConcurrentSkipListSet`, or custom sets), whereas a subclass only instruments the single class it statically extends."
+    }
+  ]
+}
