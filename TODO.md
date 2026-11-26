@@ -88,10 +88,15 @@ Generate remaining 83 lessons following the standard lesson schema (`LessonConte
 
 ---
 
-## 💳 Store Monetization & Release Prep
+## 💳 Store Monetization, Security & Release Prep
 
 - [ ] Create In-App Product SKU (`unlock_all_lessons`) in Google Play Console & Apple App Store Connect.
 - [ ] Test purchase flow using Google Play License Testing and Apple Sandbox tester accounts.
+- [ ] **Anti-Piracy Architecture & Dynamic Content Delivery**:
+  - [ ] Bundle only the 7 free-trial items in the core APK/bundle to keep base download size small.
+  - [ ] Host the full catalog package (Items 4–90) on secure cloud storage (e.g. Cloudflare R2 / AWS S3 / Google Play Asset Delivery).
+  - [ ] Implement post-purchase receipt verification (Cloudflare Worker or serverless function) before providing download access to the complete chapter package.
+  - [ ] Add offline local caching for downloaded chapters so paid users retain full offline access.
 - [ ] Generate Android production release keystore (`keytool -genkey -v -keystore release.keystore ...`).
 - [ ] Configure signing configs in `android/app/build.gradle`.
 - [ ] Build release AAB (`./gradlew bundleRelease`) and verify bundle integrity.
