@@ -1,0 +1,95 @@
+{
+  "item_number": 17,
+  "title": "Minimize mutability",
+  "concept": "Immutable classes are simpler to design, implement, and use than mutable classes. They are less prone to error and inherently thread-safe, requiring no synchronization or defensive copying. To make a class immutable, follow 5 rules: 1) Don't provide mutators (setters), 2) Ensure the class cannot be extended (make it final or use private constructors with static factories), 3) Make all fields final, 4) Make all fields private, and 5) Ensure exclusive access to any mutable components (make defensive copies in constructors, accessors, and readObject).",
+  "wrong_code": {
+    "class": "// Vulnerable 'immutable' attempt:\n// 1. Class is non-final (can be subclassed with mutable state).\n// 2. Mutable reference escapes directly via getter without defensive copy.\nimport java.util.Date;\n\npublic class Period {\n    private final Date start;\n    private final Date end;\n\n    public Period(Date start, Date end) {\n        if (start.compareTo(end) > 0)\n            throw new IllegalArgumentException(start + \" after \" + end);\n        this.start = start; // Flaw: stores direct reference!\n        this.end = end;\n    }\n\n    public Date getStart() { return start; } // Flaw: leaks internal mutable Date!\n    public Date getEnd()   { return end; }\n}",
+    "call_site": "import java.util.Date;\n\npublic class Main {\n    public static void main(String[] args) {\n        Date start = new Date();\n        Date end = new Date();\n        Period p = new Period(start, end);\n\n        // Attack 1: Mutating original reference\n        end.setYear(78); // Modifies p's internal state!\n\n        // Attack 2: Mutating via getter reference\n        p.getEnd().setYear(85); // Modifies p's internal state!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Bulletproof immutable class:\n// - Made final to prevent subclassing\n// - Defensive copying in constructor AND accessors\nimport java.util.Date;\n\npublic final class Period {\n    private final Date start;\n    private final Date end;\n\n    public Period(Date start, Date end) {\n        // Defensive copy BEFORE validity check to avoid TOCTOU vulnerability\n        this.start = new Date(start.getTime());\n        this.end   = new Date(end.getTime());\n\n        if (this.start.compareTo(this.end) > 0)\n            throw new IllegalArgumentException(this.start + \" after \" + this.end);\n    }\n\n    public Date getStart() { return new Date(start.getTime()); }\n    public Date getEnd()   { return new Date(end.getTime()); }\n}",
+    "call_site": "import java.util.Date;\n\npublic class Main {\n    public static void main(String[] args) {\n        Date start = new Date();\n        Date end = new Date();\n        Period p = new Period(start, end);\n\n        end.setYear(78); // Does not affect p!\n        p.getEnd().setYear(85); // Does not affect p!\n        System.out.println(p.getEnd()); // Preserved untouched!\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What are the key advantages of making a class immutable?",
+    "back": "Immutable objects are inherently thread-safe (no synchronization needed), can be shared freely without defensive copying, make great Map keys and Set elements, and provide failure atomicity."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What is the primary disadvantage of immutable classes, and how do you mitigate it?",
+    "back": "They require a separate object for each distinct value, which can be costly for large multistep operations. Mitigate this by providing a mutable companion class (e.g. StringBuilder for String, BigInteger's package-private mutable counterpart)."
+  },
+  "quiz": [
+    {
+      "question": "Which of the following is NOT one of the five core rules for making a class immutable?",
+      "options": [
+        "Don't provide mutator methods (setters)",
+        "Ensure that the class cannot be extended",
+        "Make all fields public so no accessors are required",
+        "Ensure exclusive access to any mutable components via defensive copying"
+      ],
+      "correct_index": 2
+    },
+    {
+      "question": "Why must defensive copies of mutable constructor parameters be made BEFORE checking their validity?",
+      "options": [
+        "To protect against Time-Of-Check/Time-Of-Use (TOCTOU) race conditions from other threads modifying the parameters",
+        "Because Java syntax prohibits checks before variable assignment",
+        "To ensure the garbage collector doesn't reclaim the parameters",
+        "It is merely a stylistic preference with no functional difference"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why shouldn't you use `clone()` to make defensive copies of parameters whose types are subclassable by untrusted parties?",
+      "options": [
+        "The clone() method might be overridden by a malicious subclass to return a rogue instance or leak internal references",
+        "clone() is deprecated in all modern Java versions",
+        "clone() cannot copy primitive fields",
+        "clone() is only allowed on arrays"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is a 'mutable companion class' in the context of immutable class design?",
+      "options": [
+        "A class like StringBuilder that assists in efficient multi-step operations on String values without intermediate allocations",
+        "A static inner class that provides getters only",
+        "A subclass that adds setters",
+        "A helper class that serializes immutable objects"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How can a class be made effectively final without using the `final` keyword on the class declaration?",
+      "options": [
+        "Make all constructors private or package-private and expose public static factories",
+        "Declare all methods as native",
+        "Implement the AutoCloseable interface",
+        "Remove all instance fields"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "What does it mean for an immutable object to have 'failure atomicity'?",
+      "model_answer": "Failure atomicity means that if an operation or method fails (throws an exception), the object remains in the exact state it was in before the call. Because immutable objects never mutate, they guarantee failure atomicity by definition."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A class has all `private final` fields, no setters, and is marked `final`. One field is `private final List<String> items;`, and the getter is `public List<String> getItems() { return items; }`. Is this class immutable?",
+      "model_answer": "No. Even though the `items` reference is final, the `List` object itself is mutable. Callers can do `obj.getItems().clear()` and mutate the internal state. The getter must return an unmodifiable view (e.g. `Collections.unmodifiableList(items)`) or a defensive copy."
+    },
+    {
+      "type": "gotcha",
+      "question": "Can an immutable class have non-final fields internally? If so, give an example.",
+      "model_answer": "Yes. A class can be immutable to callers while relaxing the 'all fields final' rule internally for performance, such as caching expensive computations. A classic example is `String.hashCode()`, where `hash` is a non-final int lazily computed and cached on first call."
+    },
+    {
+      "type": "applied",
+      "question": "How did Java 8's `java.time` package improve on legacy date/time classes with respect to mutability?",
+      "model_answer": "Legacy classes like `java.util.Date` and `Calendar` were mutable, forcing developers to make defensive copies everywhere. `java.time` (LocalDate, Instant, ZonedDateTime) designed every entity as strictly immutable and thread-safe, with methods like `plusDays()` returning new instances rather than mutating in place."
+    }
+  ]
+}

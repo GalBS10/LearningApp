@@ -1,0 +1,95 @@
+{
+  "item_number": 80,
+  "title": "Prefer executors, tasks, and streams to threads",
+  "concept": "In early Java, `java.lang.Thread` acted as both the unit of work and the mechanism for executing it. Today, the Executor Framework (java.util.concurrent) separates the unit of work (the task: Runnable or Callable) from the execution mechanism (the ExecutorService). Working directly with raw threads is error-prone, risks resource exhaustion, and lacks queueing, scheduled execution, cancellation, and thread pooling capabilities.",
+  "wrong_code": {
+    "class": "// Anti-pattern: Manually spawning unbounded raw threads for each task\n// Risks thread starvation, OutOfMemoryError under load, and lacks return values.\npublic class WebServer {\n    public void handleRequest(final byte[] data) {\n        // Spawns a raw OS thread per request!\n        new Thread(new Runnable() {\n            @Override\n            public void run() {\n                process(data);\n            }\n        }).start();\n    }\n\n    private void process(byte[] data) {\n        // Heavy processing...\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        WebServer server = new WebServer();\n        // Under a spike of 50,000 requests, crashes JVM with java.lang.OutOfMemoryError: unable to create new native thread!\n        for (int i = 0; i < 50_000; i++) {\n            server.handleRequest(new byte[1024]);\n        }\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Modern ExecutorService: reuses bounded worker threads, supports queues & graceful shutdown\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\n\npublic class WebServer {\n    // Bounded thread pool tuned to machine cores\n    private final ExecutorService exec = Executors.newFixedThreadPool(\n        Runtime.getRuntime().availableProcessors()\n    );\n\n    public void handleRequest(final byte[] data) {\n        exec.execute(() -> process(data));\n    }\n\n    private void process(byte[] data) {\n        // Heavy processing...\n    }\n\n    public void stop() {\n        exec.shutdown();\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        WebServer server = new WebServer();\n        for (int i = 0; i < 50_000; i++) {\n            server.handleRequest(new byte[1024]); // Safely queued without crashing OS!\n        }\n        server.stop();\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "Why should you virtually never instantiate `new Thread()` directly in modern Java applications?",
+    "back": "Spawning raw threads ties work directly to expensive OS threads without pooling, bounds, or lifecycle management. Use ExecutorService, which abstracts execution, pools threads, supports task completion futures, and prevents resource exhaustion."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "When is `Executors.newCachedThreadPool()` dangerous to use in production?",
+    "back": "In heavily loaded servers. It creates a new thread for each task without an upper bound if all existing threads are busy. Under sudden traffic spikes, it can spawn thousands of threads and trigger an OutOfMemoryError."
+  },
+  "quiz": [
+    {
+      "question": "What is the key conceptual distinction introduced by the Executor Framework in java.util.concurrent?",
+      "options": [
+        "It separates the unit of work (the Task) from the execution mechanism (the ExecutorService)",
+        "It eliminates the need for any threads on the operating system",
+        "It replaces all interfaces with abstract classes",
+        "It forces all asynchronous operations to run sequentially"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the primary difference between `Runnable` and `Callable<V>`?",
+      "options": [
+        "Callable can return a value and throw checked exceptions, whereas Runnable returns void and cannot throw checked exceptions",
+        "Runnable is only for background tasks while Callable runs on the UI thread",
+        "Callable cannot be submitted to an ExecutorService",
+        "Runnable requires a return type of Object"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which executor service is recommended for small programs or lightly loaded servers that execute many short-lived asynchronous tasks?",
+      "options": [
+        "Executors.newCachedThreadPool()",
+        "Executors.newSingleThreadScheduledExecutor()",
+        "ForkJoinPool.commonPool()",
+        "Custom ThreadGroup"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "For a heavily loaded production server, which thread pool strategy is safest to prevent CPU/memory exhaustion?",
+      "options": [
+        "A ThreadPoolExecutor with bounded maximum pool size and a bounded work queue (e.g. ArrayBlockingQueue) with rejection handling",
+        "Executors.newCachedThreadPool()",
+        "new Thread() inside a while(true) loop",
+        "Timer and TimerTask"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why should modern Java code avoid using the legacy `java.util.Timer` class for scheduled execution?",
+      "options": [
+        "Timer uses only one background thread; an uncaught exception in a TimerTask terminates the entire timer and halts all scheduled tasks. ScheduledThreadPoolExecutor solves this.",
+        "Timer is deprecated in Java 8",
+        "Timer cannot run tasks periodically",
+        "Timer does not support milliseconds"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "What are the two key abstractions in java.util.concurrent, and what roles do they play?",
+      "model_answer": "1. **Task**: Represents the unit of work to be performed (`Runnable` for void, `Callable` for a value or exception).\n2. **Executor Service**: Represents the execution mechanism that runs tasks, managing thread allocation, queuing, scheduling, and graceful shutdown."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A production microservice uses `Executors.newFixedThreadPool(100)` with an unbounded `LinkedBlockingQueue` to process incoming webhooks. What is the potential vulnerability under high load?",
+      "model_answer": "If tasks arrive faster than the 100 threads can process them, tasks pile up indefinitely in the unbounded queue, eventually consuming all heap memory and causing a fatal `OutOfMemoryError`. A production system should use a bounded queue with an explicit rejection policy (e.g. `CallerRunsPolicy` or `AbortPolicy`)."
+    },
+    {
+      "type": "gotcha",
+      "question": "What happens if a task submitted to an ExecutorService via `submit()` throws an uncaught RuntimeException?",
+      "model_answer": "The exception is silently captured by the ExecutorService and saved inside the returned `Future`. It will not be printed to `System.err` or crash the thread. The exception is only rethrown (wrapped in an `ExecutionException`) when the caller calls `future.get()`."
+    },
+    {
+      "type": "applied",
+      "question": "How did Java 21's Virtual Threads (Project Loom) change the recommendation regarding threads vs executors?",
+      "model_answer": "Virtual threads are lightweight JVM-managed threads that cost almost nothing to spawn (millions can exist concurrently). Instead of pooling, the idiom shifts to spawning a new virtual thread per task using `Executors.newVirtualThreadPerTaskExecutor()`, retaining the executor abstraction while eliminating traditional pool tuning and blocking IO penalties."
+    }
+  ]
+}

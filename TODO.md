@@ -42,9 +42,9 @@ Currently, only Item 1 (`item-001.json`) exists. Complete the free trial package
 - [x] **Item 3**: Enforce the singleton property with a private constructor or an enum type (`item-003.json`)
 - [x] **Item 10**: Obey the general contract when overriding `equals` (`item-010.json`)
 - [x] **Item 11**: Always override `hashCode` when you override `equals` (`item-011.json`)
-- [ ] **Item 17**: Minimize mutability (`item-017.json`)
-- [ ] **Item 80**: Prefer executors, tasks, and streams to threads (`item-080.json`)
-- [ ] Register all new items in `src/content/index.ts`.
+- [x] **Item 17**: Minimize mutability (`item-017.json`)
+- [x] **Item 80**: Prefer executors, tasks, and streams to threads (`item-080.json`)
+- [x] Register all new items in `src/content/index.ts`.
 
 ### 2. Physical Device & Emulator Testing (When Hard Drive Connected)
 - [ ] Connect Android Studio / Android SDK from external hard drive.

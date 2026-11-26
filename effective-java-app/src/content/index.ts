@@ -10,9 +10,9 @@ import item002 from './items/item-002.json';
 import item003 from './items/item-003.json';
 import item010 from './items/item-010.json';
 import item011 from './items/item-011.json';
+import item017 from './items/item-017.json';
+import item080 from './items/item-080.json';
 
-// import item017 from './items/item-017.json';
-// import item080 from './items/item-080.json';
 // ...continue for all 90 as they're generated
 
 export const ALL_ITEMS: Lesson[] = [
@@ -21,6 +21,8 @@ export const ALL_ITEMS: Lesson[] = [
   item003 as Lesson,
   item010 as Lesson,
   item011 as Lesson,
+  item017 as Lesson,
+  item080 as Lesson,
 ];
 
 export const TOTAL_ITEMS = 90; // fixed — the book has 90 items, even before
