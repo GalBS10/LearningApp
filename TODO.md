@@ -84,12 +84,12 @@ Generate remaining lessons following the standard lesson schema (`LessonContent`
   - [x] Item 7: Eliminate obsolete object references
   - [x] Item 8: Avoid finalizers and cleaners
   - [x] Item 9: Prefer try-with-resources to try-finally
-- [ ] **Chapter 3 (Items 10–14)**: Methods Common to All Objects
+- [x] **Chapter 3 (Items 10–14 COMPLETE)**: Methods Common to All Objects
   - [x] Item 10: Obey equals contract
   - [x] Item 11: Always override hashCode when overriding equals
-  - [ ] Item 12: Always override toString
-  - [ ] Item 13: Override clone judiciously
-  - [ ] Item 14: Consider implementing Comparable
+  - [x] Item 12: Always override toString
+  - [x] Item 13: Override clone judiciously
+  - [x] Item 14: Consider implementing Comparable
 - [ ] **Chapter 4 (Items 15–25)**: Classes and Interfaces
 - [ ] **Chapter 5 (Items 26–33)**: Generics
 - [ ] **Chapter 6 (Items 34–41)**: Enums and Annotations

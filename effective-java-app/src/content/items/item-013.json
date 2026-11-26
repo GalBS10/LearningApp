@@ -1,0 +1,95 @@
+{
+  "item_number": 13,
+  "title": "Override clone judiciously",
+  "concept": "The Cloneable interface was intended as a mixin interface for objects to advertise that cloning is permitted. Unfortunately, it fails to achieve this goal: Cloneable contains no methods, and Object's protected clone method determines whether to return a field-by-field shallow copy or throw CloneNotSupportedException based on whether the class implements the marker interface. This architecture is flawed, complex, and bypasses constructor invocation. In general, copy constructors or copy factories provide a vastly superior alternative to Cloneable.",
+  "wrong_code": {
+    "class": "// Flawed clone() relying on super.clone() without deep copying mutable fields\nimport java.util.Arrays;\nimport java.util.EmptyStackException;\n\npublic class Stack implements Cloneable {\n    private Object[] elements;\n    private int size = 0;\n\n    public Stack() { elements = new Object[16]; }\n\n    // Flaw: super.clone() makes a shallow copy — both stacks now point to the SAME elements array!\n    @Override\n    public Stack clone() {\n        try {\n            return (Stack) super.clone();\n        } catch (CloneNotSupportedException e) {\n            throw new AssertionError(); // Can't happen\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Stack s1 = new Stack();\n        s1.clone(); // Any mutation on clone corrupts the original stack's elements array!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Preferred idiom: Copy Constructor or Copy Factory\nimport java.util.Arrays;\n\npublic class Stack {\n    private Object[] elements;\n    private int size;\n\n    public Stack() { this.elements = new Object[16]; this.size = 0; }\n\n    // Copy constructor: clean, safe, no Cloneable magic, doesn't bypass constructors!\n    public Stack(Stack other) {\n        this.size = other.size;\n        this.elements = other.elements.clone(); // Array clone is safe and idiomatically sanctioned\n    }\n\n    // Copy factory\n    public static Stack newInstance(Stack other) {\n        return new Stack(other);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Stack s1 = new Stack();\n        Stack s2 = new Stack(s1); // Safe, independent deep copy\n        Stack s3 = Stack.newInstance(s1);\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What is the best way to provide object copying functionality in modern Java?",
+    "back": "Provide a copy constructor (e.g. `public Yum(Yum yum)`) or copy factory (e.g. `public static Yum newInstance(Yum yum)`). Do not implement Cloneable."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What is the only valid, idiomatic use of the `clone()` method in Java?",
+    "back": "Cloning arrays (e.g. `array.clone()`), where the JVM provides a fast, type-safe copy of identical compile-time type without casting."
+  },
+  "quiz": [
+    {
+      "question": "What is the design anomaly regarding the `Cloneable` interface in Java?",
+      "options": [
+        "Cloneable does not define a clone() method; instead, it modifies the behavior of Object's protected clone() method",
+        "It can only be implemented by abstract classes",
+        "It forces all cloned fields to be static",
+        "It requires classes to implement Serializable as well"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why does `super.clone()` violate normal Java object lifecycle rules?",
+      "options": [
+        "It allocates and initializes an object without calling any constructor",
+        "It runs on the garbage collector thread",
+        "It bypasses all private variable visibility rules",
+        "It prevents garbage collection of the original object"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if a class containing mutable fields uses a simple `(MyClass) super.clone()` without deep copying?",
+      "options": [
+        "A shallow copy is created where both the original and clone share references to the same mutable internal objects",
+        "A CloneNotSupportedException is thrown at runtime",
+        "All mutable fields are set to null",
+        "The compiler throws a ClassCastException"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which of the following is an advantage that copy constructors and copy factories have over `Cloneable`?",
+      "options": [
+        "They don't rely on risk-prone field-copying mechanisms, don't conflict with final fields, and can accept argument types of an interface",
+        "They are executed directly by the CPU without bytecode",
+        "They automatically serialize objects to JSON",
+        "They can clone non-instantiable classes"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why is `clone()` incompatible with `final` fields pointing to mutable objects?",
+      "options": [
+        "A final field cannot be assigned a new deep-copied value inside clone() because final fields can only be assigned in constructors",
+        "The compiler forbids final fields in any class implementing Cloneable",
+        "final fields are erased by type erasure",
+        "final fields are always shared globally across threads"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why does Joshua Bloch advise against implementing `Cloneable` in new classes?",
+      "model_answer": "`Cloneable` is one of the most poorly designed parts of the Java standard library. It is an empty marker interface that alters the behavior of a protected method in `Object`. It constructs objects without calling constructors, conflicts with `final` fields, requires casts and handling checked `CloneNotSupportedException`, and is easily corrupted by shallow copies. Copy constructors and copy factories are strictly superior."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A class has `private final List<String> list = new ArrayList<>();`. The author attempts to implement `clone()` with deep copying. Why will it fail to compile?",
+      "model_answer": "In `clone()`, `super.clone()` shallow-copies the `list` reference. To make a deep copy, the clone would need to assign `result.list = new ArrayList<>(this.list);`. But because `list` is marked `final`, re-assigning it outside of a constructor causes a compile error. In effect, `Cloneable` is fundamentally incompatible with normal use of `final` fields."
+    },
+    {
+      "type": "gotcha",
+      "question": "What is a 'conversion constructor' or 'conversion factory', and how is it superior to `clone()`?",
+      "model_answer": "A conversion constructor takes an interface argument rather than the concrete class (e.g. `public HashSet(Collection<? extends E> c)`). This allows the client to choose the destination implementation type when copying (e.g. copying an `ArrayList` into a `TreeSet`), something `clone()` can never do."
+    },
+    {
+      "type": "applied",
+      "question": "When is `clone()` actually recommended and safe to use in modern Java?",
+      "model_answer": "On primitive or object arrays (e.g. `int[] copy = original.clone()`). For arrays, `clone()` is high-performance, requires no casting, does not throw checked exceptions, and returns an exact replica with identical runtime type."
+    }
+  ]
+}

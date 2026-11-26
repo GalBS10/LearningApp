@@ -16,6 +16,9 @@ import item008 from './items/item-008.json';
 import item009 from './items/item-009.json';
 import item010 from './items/item-010.json';
 import item011 from './items/item-011.json';
+import item012 from './items/item-012.json';
+import item013 from './items/item-013.json';
+import item014 from './items/item-014.json';
 import item017 from './items/item-017.json';
 import item080 from './items/item-080.json';
 
@@ -33,6 +36,9 @@ export const ALL_ITEMS: Lesson[] = [
   item009 as Lesson,
   item010 as Lesson,
   item011 as Lesson,
+  item012 as Lesson,
+  item013 as Lesson,
+  item014 as Lesson,
   item017 as Lesson,
   item080 as Lesson,
 ];

@@ -1,0 +1,95 @@
+{
+  "item_number": 14,
+  "title": "Consider implementing Comparable",
+  "concept": "The compareTo method is not declared in Object; it is the sole method in the Comparable interface. Implementing Comparable indicates that a class's instances have a natural ordering. A class that implements Comparable can easily interoperate with all of the generic algorithms and collection implementations in Java (such as Arrays.sort, Collections.sort, TreeSet, and TreeMap). The contract for compareTo parallels that of equals (reflexive, symmetric, transitive), and it is strongly recommended that (x.compareTo(y) == 0) == (x.equals(y)). In modern Java, Comparator construction methods provide a concise, type-safe way to write compareTo methods.",
+  "wrong_code": {
+    "class": "// Anti-pattern 1: Using subtraction difference trick in compareTo (vulnerable to integer overflow!)\n// Anti-pattern 2: Violating the consistency between compareTo and equals\nimport java.math.BigDecimal;\nimport java.util.HashSet;\nimport java.util.TreeSet;\n\npublic class IntegerComparatorPoint implements Comparable<IntegerComparatorPoint> {\n    private final int value;\n    public IntegerComparatorPoint(int val) { this.value = val; }\n\n    // Bug: If this.value is Integer.MIN_VALUE and o.value is positive,\n    // subtraction underflows and returns a positive integer!\n    @Override\n    public int compareTo(IntegerComparatorPoint o) {\n        return this.value - o.value; // Overflows!\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Example of consistency violation with BigDecimal:\n        BigDecimal b1 = new BigDecimal(\"1.0\");\n        BigDecimal b2 = new BigDecimal(\"1.00\");\n\n        // b1.equals(b2) is false (different scale)\n        // But b1.compareTo(b2) == 0!\n        // In HashSet (uses equals): size is 2!\n        // In TreeSet (uses compareTo): size is 1! Dangerous discrepancy!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Modern, robust compareTo using Java 8 Comparator construction methods\nimport java.util.Comparator;\nimport static java.util.Comparator.*;\n\npublic final class PhoneNumber implements Comparable<PhoneNumber> {\n    private final short areaCode, prefix, lineNum;\n\n    public PhoneNumber(int areaCode, int prefix, int lineNum) {\n        this.areaCode = (short) areaCode;\n        this.prefix   = (short) prefix;\n        this.lineNum  = (short) lineNum;\n    }\n\n    // Static comparator construction chaining\n    private static final Comparator<PhoneNumber> COMPARATOR =\n        comparingInt((PhoneNumber pn) -> pn.areaCode)\n            .thenComparingInt(pn -> pn.prefix)\n            .thenComparingInt(pn -> pn.lineNum);\n\n    @Override\n    public int compareTo(PhoneNumber pn) {\n        return COMPARATOR.compare(this, pn);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        PhoneNumber p1 = new PhoneNumber(707, 867, 5309);\n        PhoneNumber p2 = new PhoneNumber(707, 867, 5310);\n\n        System.out.println(p1.compareTo(p2) < 0); // true: safe and clear natural ordering\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should your class implement Comparable<T>?",
+    "back": "Whenever you write a value class with an obvious natural ordering, such as alphabetical, numerical, or chronological order."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Why should you never use `return i1 - i2;` in compareTo()?",
+    "back": "Because subtraction can silently underflow or overflow when dealing with large positive or negative integers, returning completely inverted comparison results. Use `Integer.compare(i1, i2)` or `Comparator.comparingInt()`."
+  },
+  "quiz": [
+    {
+      "question": "What is the return value contract for `compareTo(T o)`?",
+      "options": [
+        "Returns a negative integer, zero, or positive integer as this object is less than, equal to, or greater than the specified object",
+        "Returns boolean true if this is greater than o, false otherwise",
+        "Returns 0 for equal, 1 for less than, 2 for greater than",
+        "Returns void and throws an exception on inequality"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if `(x.compareTo(y) == 0) != x.equals(y)` in a class used in collection sets?",
+      "options": [
+        "HashSet (which uses equals) and TreeSet (which uses compareTo) will exhibit inconsistent behavior regarding membership and uniqueness",
+        "The compiler rejects the class",
+        "A ClassCastException is thrown on iteration",
+        "TreeSet converts itself to a LinkedList"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why is `Double.compare(d1, d2)` and `Float.compare(f1, f2)` preferred over `<` and `>` in compareTo?",
+      "options": [
+        "Because primitive `<` and `>` operators do not handle Double.NaN and -0.0d according to the total ordering contract",
+        "Because `<` and `>` do not compile on floating point numbers",
+        "Double.compare runs in GPU registers",
+        "Floating point comparisons require synchronization"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How should multiple fields be compared in a modern Java 8+ `compareTo` implementation?",
+      "options": [
+        "Using `Comparator.comparing(...)` and chaining with `.thenComparing(...)`",
+        "By multiplying hash codes of the fields",
+        "By converting all fields into a single concatenated string and comparing strings",
+        "By using nested switch statements"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Can you extend an instantiable class that implements Comparable and add a new value component while preserving the compareTo contract?",
+      "options": [
+        "No, the same limitation that applies to equals applies here: composition should be used instead of inheritance",
+        "Yes, by using super.compareTo() and checking instanceof",
+        "Yes, if the subclass is marked final",
+        "Yes, using the @Comparable annotation"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is it strongly recommended that `(x.compareTo(y) == 0) == (x.equals(y))`?",
+      "model_answer": "Collections conforming to the general `Collection`, `Set`, or `Map` contracts (like `HashSet` or `HashMap`) define equality using `equals()`. Sorted collections (like `TreeSet` or `TreeMap`) define equality using `compareTo()`. If these two methods disagree, the collections will behave inconsistently with their interface contracts (e.g. `TreeSet` dropping an element that `HashSet` considers distinct)."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer writes `return (x < y) ? -1 : ((x == y) ? 0 : 1);` for floating point fields. What edge cases will misbehave?",
+      "model_answer": "It fails on `Float.NaN` or `Double.NaN` (which always evaluates to `false` for both `<` and `==`), and fails to distinguish `+0.0` from `-0.0`. You should always use `Double.compare(x, y)` or `Float.compare(x, y)` to satisfy the strict total ordering requirement."
+    },
+    {
+      "type": "gotcha",
+      "question": "How does `BigDecimal` famously demonstrate the danger of having `compareTo` inconsistent with `equals`?",
+      "model_answer": "`new BigDecimal(\"1.0\")` and `new BigDecimal(\"1.00\")` are not equal according to `equals()` because their scales differ. However, `compareTo()` returns `0` because they represent the same numerical value. Adding both to a `HashSet` yields 2 elements, but adding both to a `TreeSet` yields only 1 element."
+    },
+    {
+      "type": "applied",
+      "question": "What is the performance implication of using Java 8 Comparator construction methods (e.g. `Comparator.comparingInt`) in compareTo?",
+      "model_answer": "Comparator chaining is readable, clean, and prevents overflow bugs. In performance micro-benchmarks, it may carry a very slight overhead (around 10-20% slower than manual field-by-field `Integer.compare` cascades) due to lambda/method reference invocation. In virtually all applications, the readability and bug-prevention benefits outweigh the negligible performance difference."
+    }
+  ]
+}

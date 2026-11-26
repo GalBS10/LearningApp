@@ -1,0 +1,95 @@
+{
+  "item_number": 12,
+  "title": "Always override toString",
+  "concept": "While java.lang.Object provides an implementation of toString, it simply returns the class name followed by an '@' sign and the hexadecimal hash code (e.g. PhoneNumber@163b91). A concise, informative toString makes your class far more pleasant to use and vastly easier to debug in log files, debugger watches, and test assertions. When practical, toString should return all of the interesting information contained in the object. Whether or not you specify the exact format in documentation, clearly document your intent and provide programmatic access (getters) to all data contained in the return value.",
+  "wrong_code": {
+    "class": "// Fails to override toString — inherits Object.toString()\npublic final class PhoneNumber {\n    private final short areaCode, prefix, lineNum;\n\n    public PhoneNumber(int areaCode, int prefix, int lineNum) {\n        this.areaCode = (short) areaCode;\n        this.prefix   = (short) prefix;\n        this.lineNum  = (short) lineNum;\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        PhoneNumber jenny = new PhoneNumber(707, 867, 5309);\n        // Useless output in production logs or test failures:\n        System.out.println(\"Failed to connect to: \" + jenny);\n        // Prints: Failed to connect to: PhoneNumber@163b91\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Informative, readable toString with explicit documentation\npublic final class PhoneNumber {\n    private final short areaCode, prefix, lineNum;\n\n    public PhoneNumber(int areaCode, int prefix, int lineNum) {\n        this.areaCode = (short) areaCode;\n        this.prefix   = (short) prefix;\n        this.lineNum  = (short) lineNum;\n    }\n\n    public short getAreaCode() { return areaCode; }\n    public short getPrefix()   { return prefix; }\n    public short getLineNum()  { return lineNum; }\n\n    /**\n     * Returns the string representation of this phone number.\n     * The string consists of twelve characters whose format is \"XXX-YYY-ZZZZ\".\n     */\n    @Override\n    public String toString() {\n        return String.format(\"%03d-%03d-%04d\", areaCode, prefix, lineNum);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        PhoneNumber jenny = new PhoneNumber(707, 867, 5309);\n        // Clear, actionable log message:\n        System.out.println(\"Failed to connect to: \" + jenny);\n        // Prints: Failed to connect to: 707-867-5309\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should you override toString() in a Java class?",
+    "back": "In virtually every instantiable class (especially value classes). Only static utility classes and enum types (which already provide good toString implementations) typically don't need it."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What must you always provide alongside a detailed toString() method?",
+    "back": "Programmatic access (getters) to all information contained in the string, so callers aren't forced to parse the string to retrieve individual fields."
+  },
+  "quiz": [
+    {
+      "question": "What is the default implementation of `Object.toString()` in Java?",
+      "options": [
+        "The class name followed by '@' and the unsigned hexadecimal representation of the object's hash code",
+        "A JSON representation of the object's fields",
+        "An empty string",
+        "The memory address of the object in native C pointers"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is a major trade-off of specifying an exact, standardized format in Javadoc for a value class's `toString()`?",
+      "options": [
+        "Clients will write parsers against the format, locking you into that format forever even if internal representations change",
+        "It prevents the class from implementing Serializable",
+        "The compiler enforces format checks at compile-time",
+        "It slows down garbage collection"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why must you provide programmatic access (getters) to all data represented in `toString()`?",
+      "options": [
+        "To prevent programmers from writing brittle string-parsing code that breaks when the format changes",
+        "Because Java reflection requires public getters",
+        "To allow toString() to run on a background thread",
+        "It is required by the equals contract"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which types of classes generally do NOT need custom `toString()` overrides?",
+      "options": [
+        "Static utility classes (which are noninstantiable) and enum types (which have built-in names)",
+        "Collections and Maps",
+        "Value classes like BigInteger or Date",
+        "Java Records"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How do modern Java Records (Java 16+) handle `toString()`?",
+      "options": [
+        "They automatically generate a clean toString() showing the record name and all component names with values",
+        "They inherit Object.toString()",
+        "They return an XML string",
+        "Records disallow overriding toString()"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is a good `toString()` implementation critical for developer productivity and operations?",
+      "model_answer": "When an object is passed to `println()`, `printf()`, string concatenation (`+`), logging frameworks (SLF4J/Logback), debugger inspection panes, or test assertion failures (`assertEquals`), `toString()` is automatically called. A diagnostic, human-readable string drastically accelerates debugging and triage."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A class has `toString()` returning `\"Person[name=\" + name + \", age=\" + age + \"]\"`, but has no `getAge()` method. What design flaw does this introduce?",
+      "model_answer": "It forces developers who need the age to parse the `toString()` output with regex or string splitting. This creates brittle, error-prone client code that crashes if formatting or spacing ever changes in the future. Always provide getters for any data exposed in `toString()`."
+    },
+    {
+      "type": "gotcha",
+      "question": "Should sensitive user information (like passwords, credit cards, or SSNs) be included in `toString()`?",
+      "model_answer": "No! `toString()` is frequently printed to application logs, crash reports, and error traces. Exposing sensitive data in `toString()` is a classic security vulnerability and compliance violation (PCI-DSS/GDPR). Sensitive fields must be masked (e.g. `\"card=****-****-****-1234\"`) or excluded entirely."
+    },
+    {
+      "type": "applied",
+      "question": "How do libraries like Google AutoValue or Project Lombok assist with `toString()`?",
+      "model_answer": "They automatically generate consistent, null-safe `toString()` methods at compile time based on class fields, eliminating boilerplate and guaranteeing that newly added fields are included in string representations without human oversight."
+    }
+  ]
+}
