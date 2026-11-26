@@ -1,0 +1,95 @@
+{
+  "item_number": 8,
+  "title": "Avoid finalizers and cleaners",
+  "concept": "Finalizers are unpredictable, often dangerous, and generally unnecessary. Their use can cause erratic behavior, poor performance, and portability problems. As of Java 9, finalizers are deprecated and replaced by cleaners, but cleaners are still unpredictable, slow, and generally unnecessary. The JVM provides no guarantee that finalizers or cleaners will run promptly, or even run at all. Never depend on a finalizer or cleaner to release critical resources like files or locks. Instead, have your class implement AutoCloseable and require clients to invoke close() via try-with-resources.",
+  "wrong_code": {
+    "class": "// Highly dangerous: relying on finalize() to release native or file resources\nimport java.io.FileInputStream;\nimport java.io.IOException;\n\npublic class ResourceHolder {\n    private FileInputStream stream;\n\n    public ResourceHolder(String file) throws IOException {\n        this.stream = new FileInputStream(file);\n    }\n\n    // Deprecated, unpredictable, and can permanently leak file descriptors!\n    @Override\n    protected void finalize() throws Throwable {\n        try {\n            if (stream != null) stream.close();\n        } finally {\n            super.finalize();\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) throws Exception {\n        // If instances are created faster than the finalizer queue thread runs,\n        // the OS runs out of file descriptors and crashes long before GC runs!\n        for (int i = 0; i < 100_000; i++) {\n            new ResourceHolder(\"data.txt\");\n        }\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Clean and safe: implement AutoCloseable with try-with-resources\nimport java.io.FileInputStream;\nimport java.io.IOException;\n\npublic class ResourceHolder implements AutoCloseable {\n    private FileInputStream stream;\n    private boolean closed = false;\n\n    public ResourceHolder(String file) throws IOException {\n        this.stream = new FileInputStream(file);\n    }\n\n    @Override\n    public void close() throws IOException {\n        if (!closed) {\n            closed = true;\n            if (stream != null) stream.close();\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Guaranteed deterministic cleanup upon leaving block:\n        try (ResourceHolder holder = new ResourceHolder(\"data.txt\")) {\n            // Use resource...\n        } catch (Exception e) {\n            e.printStackTrace();\n        }\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What should you use instead of finalizers and cleaners to release resources?",
+    "back": "Implement java.lang.AutoCloseable and require clients to use try-with-resources blocks. This guarantees immediate, deterministic cleanup."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What are the only two legitimate (minor) uses for cleaners in modern Java?",
+    "back": "1. Acting as a safety net in case a client forgets to call close().\n2. Cleaning up non-critical native peers that don't hold critical system resources."
+  },
+  "quiz": [
+    {
+      "question": "Why is relying on finalizers or cleaners to close files or release locks disastrous?",
+      "options": [
+        "The JVM gives no guarantee of when they will execute, or even that they will execute at all before the program terminates",
+        "Finalizers are executed in the same thread as the main method",
+        "They cause compiler syntax errors in Java 8+",
+        "Cleaners require root administrative permissions"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is a 'finalizer attack' in Java security?",
+      "options": [
+        "A malicious subclass overrides finalize() on a class whose constructor threw an exception, keeping the partially constructed instance alive to bypass security checks",
+        "A buffer overflow attack targeting JVM bytecode",
+        "An attack that disables the garbage collector",
+        "A denial-of-service attack on HTTP endpoints"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How can a non-final class defend against finalizer attacks?",
+      "options": [
+        "Declare a final, empty finalize() method in the parent class",
+        "Make all fields volatile",
+        "Implement Cloneable",
+        "Throw an exception in equals()"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens if an uncaught exception is thrown inside a finalizer during garbage collection?",
+      "options": [
+        "The exception is ignored, the finalization of that object terminates, and no warning or stack trace is printed",
+        "The JVM immediately halts with a fatal crash dump",
+        "The exception is redirected to System.err automatically",
+        "The garbage collector retries the finalizer indefinitely"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What performance penalty is associated with objects that use finalizers?",
+      "options": [
+        "Object creation and destruction can be tens to hundreds of times slower due to GC finalizer queue overhead",
+        "It causes 64-bit JVMs to switch to 32-bit mode",
+        "It forces JIT compilation to be disabled globally",
+        "It prevents primitive variables from being stored on the stack"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why did Java deprecate finalizers in Java 9, and what should modern applications use instead?",
+      "model_answer": "Finalizers are non-deterministic, execute at arbitrary GC intervals with low-priority threads, suppress uncaught exceptions silently, suffer massive performance overheads, and open severe security holes (finalizer attacks). Modern Java applications must use `AutoCloseable` with `try-with-resources` for deterministic resource management."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A class constructor validates an API token and throws `SecurityException` if invalid. How can an attacker bypass this check using finalizers?",
+      "model_answer": "An attacker creates a subclass that overrides `finalize()`. When `new MaliciousSubclass()` throws `SecurityException` in the super constructor, the partially constructed object is queued for finalization. The attacker's `finalize()` method saves `this` into a static field, resurrecting the unauthorized object."
+    },
+    {
+      "type": "gotcha",
+      "question": "Does calling `System.gc()` or `System.runFinalization()` guarantee that finalizers or cleaners will execute?",
+      "model_answer": "No! They may increase the likelihood of finalization, but the JVM specification explicitly states there is no guarantee that finalizers will run. In fact, `System.runFinalizersOnExit()` was deprecated and removed because it was fatally flawed and deadlock-prone."
+    },
+    {
+      "type": "applied",
+      "question": "How does `java.lang.ref.Cleaner` work as a safety net without leaking the outer object reference?",
+      "model_answer": "The cleaning action must be a `Runnable` defined in a static inner class or independent lambda that does NOT capture a reference to the outer instance (`this`). If the cleaner lambda captures `this`, it creates a circular reference that prevents the outer object from ever becoming unreachable!"
+    }
+  ]
+}

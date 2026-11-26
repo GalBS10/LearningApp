@@ -1,0 +1,95 @@
+{
+  "item_number": 7,
+  "title": "Eliminate obsolete object references",
+  "concept": "Although Java has automatic garbage collection, memory leaks (unintentional object retentions) can still occur. When an object reference becomes obsolete (will never be dereferenced again), holding onto it prevents the garbage collector from reclaiming the object and any objects it references transitively. Common culprits include: 1) Classes that manage their own memory (like custom stacks or array-based buffers), 2) Caches that hold onto entries indefinitely, and 3) Listeners and other callbacks that are registered but never unregistered.",
+  "wrong_code": {
+    "class": "// Memory leak in custom stack implementation!\nimport java.util.Arrays;\nimport java.util.EmptyStackException;\n\npublic class Stack {\n    private Object[] elements;\n    private int size = 0;\n    private static final int DEFAULT_INITIAL_CAPACITY = 16;\n\n    public Stack() { elements = new Object[DEFAULT_INITIAL_CAPACITY]; }\n\n    public void push(Object e) {\n        ensureCapacity();\n        elements[size++] = e;\n    }\n\n    // Flaw: Decrements size, but leaves the obsolete reference in elements[size]!\n    public Object pop() {\n        if (size == 0) throw new EmptyStackException();\n        return elements[--size]; // Leaks object reference!\n    }\n\n    private void ensureCapacity() {\n        if (elements.length == size)\n            elements = Arrays.copyOf(elements, 2 * size + 1);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Stack stack = new Stack();\n        // Pushes and pops millions of objects...\n        // The popped objects are never freed because the internal elements array retains them!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Properly nulling out obsolete references when popped\nimport java.util.Arrays;\nimport java.util.EmptyStackException;\n\npublic class Stack {\n    private Object[] elements;\n    private int size = 0;\n    private static final int DEFAULT_INITIAL_CAPACITY = 16;\n\n    public Stack() { elements = new Object[DEFAULT_INITIAL_CAPACITY]; }\n\n    public void push(Object e) {\n        ensureCapacity();\n        elements[size++] = e;\n    }\n\n    public Object pop() {\n        if (size == 0) throw new EmptyStackException();\n        Object result = elements[--size];\n        elements[size] = null; // Eliminate obsolete reference!\n        return result;\n    }\n\n    private void ensureCapacity() {\n        if (elements.length == size)\n            elements = Arrays.copyOf(elements, 2 * size + 1);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        Stack stack = new Stack();\n        stack.push(\"Item 1\");\n        Object item = stack.pop(); // Popped slot in elements is set to null, GC can reclaim!\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should you manually null out object references in Java?",
+    "back": "Whenever a class manages its own memory (e.g. an array where active elements are a subset of allocated slots). Null out array elements as soon as they become obsolete."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Should you routinely null out local variables at the end of methods?",
+    "back": "No! Nulling out object references should be the exception, not the norm. The best way to eliminate obsolete references for local variables is to let them naturally fall out of scope."
+  },
+  "quiz": [
+    {
+      "question": "Why did the unoptimized `pop()` method in the custom Stack cause a memory leak?",
+      "options": [
+        "The stack maintained obsolete references in elements array slots beyond its logical size that the GC could not collect",
+        "It failed to call System.gc()",
+        "It did not implement the AutoCloseable interface",
+        "The JVM does not support array resizing"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is an added benefit of nulling out an obsolete array reference in addition to freeing memory?",
+      "options": [
+        "If the reference is mistakenly dereferenced later, the program immediately fails with a NullPointerException rather than silently corrupting data",
+        "It forces immediate JVM thread termination",
+        "It defragments the heap",
+        "It improves CPU L1 cache locality"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which data structure is best suited for an in-memory cache where entries should be automatically collected when keys are no longer referenced externally?",
+      "options": [
+        "java.util.WeakHashMap",
+        "java.util.Hashtable",
+        "java.util.TreeMap",
+        "java.util.Vector"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the third common source of memory leaks in Java applications, alongside custom memory management and caches?",
+      "options": [
+        "Listeners and callbacks that are registered but never explicitly deregistered",
+        "Static factory methods",
+        "Final classes",
+        "Switch statements"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the natural, idiomatic way to ensure local variables become eligible for garbage collection?",
+      "options": [
+        "Define each variable in the narrowest possible scope so it falls out of scope as soon as possible",
+        "Set every local variable to null at the end of every method",
+        "Declare every local variable volatile",
+        "Use reflection to inspect local frames"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Explain what an 'obsolete reference' is in the context of Java garbage collection.",
+      "model_answer": "An obsolete reference is simply a reference that will never be dereferenced again by the application. Because the GC relies on reachability from GC roots, if a data structure retains a reference to an obsolete object, the GC cannot reclaim it, causing silent memory leaks (loitering objects)."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "An event publisher allows UI components to register listeners: `public void addListener(EventListener l) { listeners.add(l); }`, but has no `removeListener` method. What happens over time?",
+      "model_answer": "The publisher retains strong references to all registered listeners. Even when screens or UI components are closed and no longer visible, the GC cannot collect them because the publisher still references them. This is a classic listener leak; use weak references (`WeakHashMap`) or provide explicit deregistration."
+    },
+    {
+      "type": "gotcha",
+      "question": "Why shouldn't you null out every variable as soon as you finish using it?",
+      "model_answer": "Over-nulling code litters it with visual clutter and boilerplate. Modern JVM compilers track variable liveness with escape analysis and liveness analysis; once a variable is no longer read, the GC treats it as dead even before the method exits. Explicit nulling is only required when a class manages its own storage (e.g. an array backing a collection)."
+    },
+    {
+      "type": "applied",
+      "question": "How do memory profiling tools (like Eclipse Memory Analyzer or JProfiler) help detect memory leaks caused by obsolete references?",
+      "model_answer": "Profilers take heap dumps and analyze the dominator tree. They calculate 'retained size' (memory freed if an object were collected) and display 'Shortest Paths to GC Roots', revealing which long-lived object (like a static collection or singleton) is holding onto obsolete instances."
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "item_number": 6,
+  "title": "Avoid creating unnecessary objects",
+  "concept": "Reusing an existing immutable object is faster and cleaner than creating a functionally equivalent new object every time one is needed. Avoid constructs like `new String(\"bikini\")`, which creates redundant heap instances on every execution. Prefer static factories over constructors for immutable types (e.g. `Boolean.valueOf(true)` instead of `new Boolean(true)`). Be vigilant with expensive objects (like compiled regex `Pattern`), and watch out for hidden autoboxing in loops, which creates millions of unnecessary wrapper objects.",
+  "wrong_code": {
+    "class": "// Anti-pattern 1: Compiling regex Pattern repeatedly inside a method\n// Anti-pattern 2: Hidden autoboxing creating millions of Long objects in a loop\npublic class PerformanceTraps {\n    // Re-compiles Pattern every time isRomanNumeral is called!\n    public static boolean isRomanNumeral(String s) {\n        return s.matches(\"^(?=.)M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$\");\n    }\n\n    public static long sum() {\n        Long sum = 0L; // Flaw: Boxed Long instead of primitive long!\n        for (long i = 0; i <= Integer.MAX_VALUE; i++) {\n            sum += i; // Instantiates ~2 billion Long instances!\n        }\n        return sum;\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Extremely slow due to ~2 billion object allocations and GC thrashing!\n        long total = PerformanceTraps.sum();\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Reusing expensive Pattern and using primitive types\nimport java.util.regex.Pattern;\n\npublic class PerformanceTraps {\n    // Compiled once and cached in static final field\n    private static final Pattern ROMAN = Pattern.compile(\n        \"^(?=.)M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$\"\n    );\n\n    public static boolean isRomanNumeral(String s) {\n        return ROMAN.matcher(s).matches();\n    }\n\n    public static long sum() {\n        long sum = 0L; // Primitive long avoids object creation\n        for (long i = 0; i <= Integer.MAX_VALUE; i++) {\n            sum += i; // Blazing fast: no boxing or heap allocations\n        }\n        return sum;\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Order of magnitude faster, zero GC pressure!\n        long total = PerformanceTraps.sum();\n        System.out.println(\"Sum calculated efficiently: \" + total);\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "What are two classic hidden sources of unnecessary object creation in Java?",
+    "back": "1. `String.matches()` (recompiles a regex Pattern on every call).\n2. Autoboxing in loops (e.g. `Long sum += i`, allocating billions of boxed objects)."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Should you maintain your own custom object pool for small, lightweight objects?",
+    "back": "No! Modern JVM garbage collectors allocate and collect lightweight objects faster than custom pools. Object pooling is only justified for extremely heavyweight resources like database connections."
+  },
+  "quiz": [
+    {
+      "question": "Why is `String.matches(regex)` inefficient when called repeatedly in performance-critical code?",
+      "options": [
+        "It internally compiles a new java.util.regex.Pattern instance on every single invocation and discards it",
+        "It uses reflection to parse strings",
+        "It causes thread deadlocks",
+        "It converts the string to an ASCII byte array"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What happens in the expression `Long sum = 0L; sum += i;` where `i` is a primitive `long` inside a loop?",
+      "options": [
+        "A new java.lang.Long instance is created on every iteration due to autoboxing",
+        "The compiler optimizes sum to a primitive long automatically",
+        "The operation runs in native CPU registers without allocations",
+        "An ArithmeticException is thrown"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the difference between `String s = \"hello\";` and `String s = new String(\"hello\");`?",
+      "options": [
+        "The literal uses the String intern pool and reuses the instance, while new String() explicitly forces a new object onto the heap",
+        "The literal creates a mutable string",
+        "new String() is faster on 64-bit JVMs",
+        "There is no difference"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How does an 'adapter' (or 'view') object relate to unnecessary object creation?",
+      "options": [
+        "An adapter object delegates to a backing object; creating multiple adapter instances for the same backing object is redundant (e.g. Map.keySet())",
+        "Adapters cannot be garbage collected",
+        "Adapters always cause memory leaks",
+        "Adapters duplicate the entire backing data structure"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How does the advice 'avoid creating unnecessary objects' compare to 'defensive copying'?",
+      "options": [
+        "Defensive copying trumps this rule: creating an unnecessary duplicate is a minor performance penalty, but failing to make a defensive copy when needed is a fatal bug or security hole",
+        "They are identical rules",
+        "You should never make defensive copies because they create unnecessary objects",
+        "Defensive copying is deprecated"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why does Joshua Bloch caution that 'Avoid creating unnecessary objects' should NOT be misconstrued as 'Object creation is expensive'?",
+      "model_answer": "Modern JVM garbage collectors are highly optimized; allocating and reclaiming small, short-lived objects is extraordinarily cheap. You should not contort your code or create complex object pools for simple objects. The goal is to avoid gratuitous creation of expensive objects (e.g. compiled regexes, database connections) or unthinking allocations in hot loops (autoboxing)."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer writes: `public static boolean isEmail(String email) { return email.matches(\"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\\\.[A-Z]{2,6}$\"); }`. In a high-throughput API, what is the bottleneck?",
+      "model_answer": "`email.matches(...)` compiles the regular expression into a finite state machine `Pattern` on every call. In a high-throughput API, this burns CPU and generates massive garbage. The regex should be precompiled once into a `private static final Pattern`."
+    },
+    {
+      "type": "gotcha",
+      "question": "Does calling `Map.keySet()` create a new Set on every invocation?",
+      "model_answer": "No. Implementations of `Map.keySet()` return a single view (adapter) backed by the map. Calling `keySet()` multiple times returns the same view or functionally identical views; modifications to the returned set reflect directly in the map and vice versa."
+    },
+    {
+      "type": "applied",
+      "question": "What is the memory and performance impact of autoboxing inside high-frequency streams or loops?",
+      "model_answer": "Autoboxing turns primitive operations into object allocations on the heap. In large loops or stream pipelines, this creates millions of wrapper objects, causes cache misses due to pointer indirection, and triggers frequent garbage collection pauses. Always use primitive streams (like `LongStream`, `IntStream`) or primitive variables in hot loops."
+    }
+  ]
+}

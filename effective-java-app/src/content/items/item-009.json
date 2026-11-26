@@ -1,0 +1,95 @@
+{
+  "item_number": 9,
+  "title": "Prefer try-with-resources to try-finally",
+  "concept": "The traditional try-finally statement was historically the best way to guarantee that a resource would be closed, even in the face of an exception or return. However, it becomes unreadable and fragile when multiple resources must be closed. Worse, if both the try block and the finally block throw exceptions, the exception from the finally block completely obliterates the exception from the try block, making debugging a nightmare. Java 7's try-with-resources statement solves all of these problems: it is shorter, cleaner, and preserves the original exception while suppressing subsequent ones.",
+  "wrong_code": {
+    "class": "// Clunky and error-prone try-finally with nested resources\nimport java.io.*;\n\npublic class CopyUtil {\n    private static final int BUFFER_SIZE = 1024;\n\n    static void copy(String src, String dst) throws IOException {\n        InputStream in = new FileInputStream(src);\n        try {\n            OutputStream out = new FileOutputStream(dst);\n            try {\n                byte[] buf = new byte[BUFFER_SIZE];\n                int n;\n                while ((n = in.read(buf)) >= 0)\n                    out.write(buf, 0, n);\n            } finally {\n                // If in.read() failed AND out.close() fails,\n                // the second exception completely MASKS the first exception!\n                out.close();\n            }\n        } finally {\n            in.close();\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        try {\n            CopyUtil.copy(\"source.txt\", \"target.txt\");\n        } catch (IOException e) {\n            // Stack trace only shows the failure from close(),\n            // leaving no clue about the real underlying failure in read()!\n            e.printStackTrace();\n        }\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Elegant, safe try-with-resources with multiple resources\nimport java.io.*;\n\npublic class CopyUtil {\n    private static final int BUFFER_SIZE = 1024;\n\n    static void copy(String src, String dst) throws IOException {\n        // Resources are closed in reverse order of declaration\n        try (InputStream in = new FileInputStream(src);\n             OutputStream out = new FileOutputStream(dst)) {\n            byte[] buf = new byte[BUFFER_SIZE];\n            int n;\n            while ((n = in.read(buf)) >= 0)\n                out.write(buf, 0, n);\n        }\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        try {\n            CopyUtil.copy(\"source.txt\", \"target.txt\");\n        } catch (IOException e) {\n            // The actual root exception from read() is preserved and printed.\n            // Any exception from close() is attached as a suppressed exception!\n            e.printStackTrace();\n        }\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should you use try-with-resources instead of try-finally?",
+    "back": "Always! Whenever using resources that must be closed (anything implementing AutoCloseable or Closeable). The code is shorter, cleaner, and prevents exceptions from being masked."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "What interface must a class implement to be used in a try-with-resources statement?",
+    "back": "java.lang.AutoCloseable (which contains a single `void close() throws Exception` method)."
+  },
+  "quiz": [
+    {
+      "question": "What happens when both the try block and the finally block throw an exception in a traditional try-finally construct?",
+      "options": [
+        "The exception from the finally block completely obliterates the exception from the try block, hiding the root cause",
+        "Both exceptions are printed simultaneously to the console",
+        "The compiler throws a SyntaxError",
+        "The JVM swallows the finally exception and preserves the try exception"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How does try-with-resources handle multiple exceptions if both the try body and the implicit close() call fail?",
+      "options": [
+        "It preserves the first exception (from the body) as the primary thrown exception, and records the close() exception as a 'suppressed exception'",
+        "It crashes the JVM immediately",
+        "It ignores the exception from the try body",
+        "It combines them into a GenericException"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How can you programmatically retrieve suppressed exceptions from a caught Throwable?",
+      "options": [
+        "By calling getSuppressed() on the caught exception",
+        "By reading System.getProperty(\"suppressed\")",
+        "Suppressed exceptions are deleted and cannot be accessed",
+        "By using reflection on Thread.currentThread()"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "In what order are multiple resources closed when declared in a single try-with-resources statement: `try (R1 r1 = ...; R2 r2 = ...) { }`?",
+      "options": [
+        "In reverse order of declaration (R2 is closed first, then R1)",
+        "In the exact same order (R1 first, then R2)",
+        "In parallel on separate threads",
+        "In arbitrary non-deterministic order"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Can you attach `catch` and `finally` clauses to a try-with-resources statement?",
+      "options": [
+        "Yes, you can add catch and finally clauses just like any normal try statement without additional nesting",
+        "No, try-with-resources cannot have catch blocks",
+        "Only if the resources implement Serializable",
+        "Only on Java 11 and higher"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is try-with-resources vastly superior to try-finally when managing multiple resources?",
+      "model_answer": "1. **Readability**: Eliminates ugly nested `try-finally` blocks.\n2. **Diagnostic Safety**: Prevents the 'masking' of exceptions; the primary failure is thrown, and subsequent close failures are attached via `Throwable.addSuppressed()`.\n3. **Reliability**: Closes resources strictly in reverse order of declaration automatically."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer writes: `try (InputStream in = new FileInputStream(f)) { ... }` where `MyResource` doesn't compile in the try header. What interface did they forget to implement?",
+      "model_answer": "The class must implement `java.lang.AutoCloseable`. The compiler enforces that any resource variable declared inside a try-with-resources header must be a subtype of `AutoCloseable`."
+    },
+    {
+      "type": "gotcha",
+      "question": "What is the key difference between `java.io.Closeable` and `java.lang.AutoCloseable`?",
+      "model_answer": "`Closeable` is an older interface (Java 5) whose `close()` method throws `IOException` and is idempotent. `AutoCloseable` (Java 7) is the broader parent interface whose `close()` throws `Exception`. If a class does not specifically throw `IOException`, it should implement `AutoCloseable` directly with the most specific exception type possible."
+    },
+    {
+      "type": "applied",
+      "question": "How did Java 9 improve the syntax of try-with-resources statements?",
+      "model_answer": "Java 7 required resource variables to be declared freshly inside the try parentheses. Java 9 allows pre-existing effectively final variables to be used directly in the try-with-resources clause: `try (existingReader; existingWriter) { ... }`."
+    }
+  ]
+}

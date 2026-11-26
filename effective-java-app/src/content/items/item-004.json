@@ -1,0 +1,95 @@
+{
+  "item_number": 4,
+  "title": "Enforce noninstantiability with a private constructor",
+  "concept": "Utility classes that group static methods and fields (such as java.lang.Math or java.util.Arrays) are not meant to be instantiated. If no constructor is declared, Java provides a default public no-arg constructor, unintentionally making the class instantiable. Attempting to enforce noninstantiability by making the class abstract fails because subclasses can still be instantiated. The proper solution is to provide a single private constructor that throws an AssertionError.",
+  "wrong_code": {
+    "class": "// Flaw 1: No constructor declared -> compiler provides public no-arg constructor!\n// Flaw 2: Making it abstract allows clients to subclass and instantiate it anyway.\npublic abstract class StringUtils {\n    public static boolean isEmpty(String s) {\n        return s == null || s.trim().isEmpty();\n    }\n    // Subclasses can still instantiate this!\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Unintended instantiation via subclass:\n        class SubStringUtils extends StringUtils {}\n        StringUtils utils = new SubStringUtils(); // Object created unnecessarily!\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Noninstantiable utility class\npublic final class StringUtils {\n    // Suppress default constructor for noninstantiability\n    private StringUtils() {\n        throw new AssertionError(\"No StringUtils instances for you!\");\n    }\n\n    public static boolean isEmpty(String s) {\n        return s == null || s.trim().isEmpty();\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Clean, direct static invocation:\n        boolean empty = StringUtils.isEmpty(\"  \");\n        System.out.println(empty); // true\n        \n        // new StringUtils(); // Compile-time error: private constructor!\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "How do you enforce that a utility class containing only static methods cannot be instantiated?",
+    "back": "Declare a single private constructor that throws an AssertionError. This prevents accidental invocation from within the class and reflection, and blocks subclassing."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "Why is making a utility class `abstract` NOT sufficient to prevent instantiation?",
+    "back": "Because an abstract class can still be subclassed, and the subclass's constructor will implicitly call the super constructor, creating an instance."
+  },
+  "quiz": [
+    {
+      "question": "What happens if you do not declare any constructor in a utility class?",
+      "options": [
+        "The compiler automatically generates a public, parameterless default constructor",
+        "The class becomes noninstantiable by default",
+        "The compiler issues a warning",
+        "All methods in the class become private"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why should the private constructor of a noninstantiable class throw an AssertionError?",
+      "options": [
+        "To prevent accidental invocation from within the class itself or via reflection",
+        "It is required by the Java Language Specification",
+        "To enable garbage collection",
+        "To allow subclasses to override it"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is a side effect of making all constructors private in a utility class?",
+      "options": [
+        "The class cannot be subclassed, because subclass constructors must invoke a superclass constructor",
+        "Static methods can no longer access static fields",
+        "The class cannot be imported into other packages",
+        "The JVM disables JIT compilation for that class"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Which standard Java library class is an example of a noninstantiable utility class?",
+      "options": [
+        "java.util.Collections",
+        "java.util.ArrayList",
+        "java.lang.Thread",
+        "java.io.File"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "Why does making a utility class `abstract` mislead API consumers?",
+      "options": [
+        "It implies the class was designed for inheritance and encourages subclassing",
+        "It prevents static methods from being called",
+        "It causes compilation errors in Java 17+",
+        "It makes the class incompatible with interfaces"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "Why is declaring a private constructor the only foolproof way to enforce noninstantiability?",
+      "model_answer": "Omitting a constructor causes the compiler to insert a default public constructor. Marking the class abstract misleadingly suggests inheritance and allows subclasses to be instantiated. A private constructor blocks external callers and subclassing, and throwing an `AssertionError` inside defends against internal or reflective invocation."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A developer writes `public abstract class MathUtils { ... }` with all static helper methods. What is the design issue?",
+      "model_answer": "Clients can subclass `MathUtils` and instantiate the subclass, defeating noninstantiability. Furthermore, the `abstract` keyword falsely signals to developers that the class was designed for extension."
+    },
+    {
+      "type": "gotcha",
+      "question": "Does a private constructor completely prevent instantiation via reflection?",
+      "model_answer": "No, reflection with `setAccessible(true)` can invoke private constructors. That is specifically why Joshua Bloch recommends throwing an exception (like `AssertionError`) inside the constructor body, so reflective calls fail at runtime."
+    },
+    {
+      "type": "applied",
+      "question": "How do modern languages like Kotlin or C# handle noninstantiable utility classes compared to Java?",
+      "model_answer": "Kotlin provides top-level functions and `object` declarations, eliminating utility classes. C# provides the `static class` keyword, where the compiler enforces that no constructors or instance members can exist."
+    }
+  ]
+}

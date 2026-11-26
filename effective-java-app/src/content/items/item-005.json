@@ -1,0 +1,95 @@
+{
+  "item_number": 5,
+  "title": "Prefer dependency injection to hardwiring resources",
+  "concept": "Classes that depend on underlying resources (such as a SpellChecker depending on a Dictionary) should not manage resource creation themselves via static utility methods or singletons. Hardwiring resources makes classes inflexible, untestable, and impossible to reuse with different resource variants (e.g. specialized, multilingual, or mock dictionaries). The solution is Dependency Injection: pass the dependent resource (or a factory to create it) into the constructor when creating a new instance.",
+  "wrong_code": {
+    "class": "// Inflexible singleton or static utility hardwiring a single resource\npublic class SpellChecker {\n    private static final Lexicon dictionary = new EnglishDictionary();\n\n    private SpellChecker() {} // Noninstantiable\n\n    public static boolean isValid(String word) {\n        return dictionary.contains(word);\n    }\n    // How can we test this with a mock dictionary or support FrenchDictionary?\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Rigid: tightly coupled to EnglishDictionary, impossible to mock in unit tests!\n        boolean ok = SpellChecker.isValid(\"hello\");\n    }\n}"
+  },
+  "right_code": {
+    "class": "// Flexible dependency injection: pass resource to constructor\nimport java.util.Objects;\n\npublic class SpellChecker {\n    private final Lexicon dictionary;\n\n    // Dependency injected at construction time\n    public SpellChecker(Lexicon dictionary) {\n        this.dictionary = Objects.requireNonNull(dictionary);\n    }\n\n    public boolean isValid(String word) {\n        return dictionary.contains(word);\n    }\n}",
+    "call_site": "public class Main {\n    public static void main(String[] args) {\n        // Production use:\n        SpellChecker enChecker = new SpellChecker(new EnglishDictionary());\n        // Unit test use:\n        SpellChecker testChecker = new SpellChecker(new MockDictionary());\n        // Multi-language use:\n        SpellChecker frChecker = new SpellChecker(new FrenchDictionary());\n    }\n}"
+  },
+  "when_to_use_flashcard": {
+    "front": "When should you pass resources into a constructor instead of letting the class create them?",
+    "back": "Whenever a class's behavior is parameterized by an underlying resource (like a database, dictionary, or payment gateway), especially when multiple implementations or test mocks exist."
+  },
+  "when_not_to_use_flashcard": {
+    "front": "When is Dependency Injection unnecessary overhead?",
+    "back": "When a resource is truly invariant and shared universally across the entire JVM with no possibility of alternative configurations or mock requirements."
+  },
+  "quiz": [
+    {
+      "question": "Why is hardwiring a resource via a singleton or static utility method problematic?",
+      "options": [
+        "It prevents testing with mock implementations and disallows using multiple instances with different configurations",
+        "It causes the JVM to consume 2x more memory",
+        "It prevents garbage collection of primitive types",
+        "It disables multi-threading in Java"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What is the most fundamental and cleanest form of Dependency Injection in Java?",
+      "options": [
+        "Constructor injection",
+        "Field reflection injection",
+        "Setter injection after instantiation",
+        "ThreadLocal context injection"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How can a constructor accept a factory that creates resources dynamically on demand?",
+      "options": [
+        "By accepting a Supplier<? extends T> parameter",
+        "By passing a String containing the class name",
+        "By extending ThreadGroup",
+        "By using System.loadLibrary()"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "How does constructor injection preserve class immutability?",
+      "options": [
+        "Injected dependencies can be assigned directly to private final fields inside the constructor",
+        "It forces the compiler to mark all methods synchronized",
+        "It converts classes into interfaces",
+        "It bypasses the heap"
+      ],
+      "correct_index": 0
+    },
+    {
+      "question": "What tools or frameworks are commonly used to automate dependency injection in large enterprise Java systems?",
+      "options": [
+        "Spring, Dagger, and Guice",
+        "Hibernate and JPA",
+        "JUnit and Mockito",
+        "Ant and Maven"
+      ],
+      "correct_index": 0
+    }
+  ],
+  "interview_questions": [
+    {
+      "type": "conceptual",
+      "question": "What is Dependency Injection, and why does Bloch recommend constructor injection over setter or field injection?",
+      "model_answer": "Dependency Injection means passing dependent objects into a class rather than letting the class instantiate them. Constructor injection is preferred because it ensures the object is never created in an invalid, half-initialized state and allows dependency fields to be marked `final`, preserving immutability and thread safety."
+    },
+    {
+      "type": "spot_the_issue",
+      "question": "A class has a single setter `public void setDatabase(Database db)` used after calling a parameterless constructor. What are the two design risks?",
+      "model_answer": "1. It allows temporal coupling and inconsistent states: methods called before `setDatabase()` will fail with NullPointerExceptions.\n2. The class cannot be immutable, as the `database` reference cannot be `final`."
+    },
+    {
+      "type": "gotcha",
+      "question": "What is the Factory Method pattern variant used in Dependency Injection with Java 8 lambdas?",
+      "model_answer": "Passing a `Supplier<T>` (or `Supplier<? extends T>`) to the constructor. This allows the client to pass a factory or lambda that creates or fetches new resource instances on demand without coupling the class to a specific creation mechanism."
+    },
+    {
+      "type": "applied",
+      "question": "How does Dependency Injection fundamentally simplify unit testing with libraries like Mockito?",
+      "model_answer": "Because dependencies are supplied externally via constructors, unit tests can instantiate the class under test by passing mock or stub implementations directly without needing complex bytecode manipulation, reflection hacks, or mock static singletons."
+    }
+  ]
+}

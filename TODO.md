@@ -73,9 +73,23 @@ Currently, only Item 1 (`item-001.json`) exists. Complete the free trial package
 
 ## 📦 Full Catalog Content Expansion (Items 4–90)
 
-Generate remaining 83 lessons following the standard lesson schema (`LessonContent`):
-- [ ] **Chapter 2 (Items 4–9)**: Creating and Destroying Objects
-- [ ] **Chapter 3 (Items 12–14)**: Methods Common to All Objects
+Generate remaining lessons following the standard lesson schema (`LessonContent`):
+- [x] **Chapter 2 (Items 1–9 COMPLETE)**: Creating and Destroying Objects
+  - [x] Item 1: Static factories instead of constructors
+  - [x] Item 2: Builder when faced with many parameters
+  - [x] Item 3: Enforce singleton with private constructor or enum
+  - [x] Item 4: Enforce noninstantiability with private constructor
+  - [x] Item 5: Prefer dependency injection to hardwiring resources
+  - [x] Item 6: Avoid creating unnecessary objects
+  - [x] Item 7: Eliminate obsolete object references
+  - [x] Item 8: Avoid finalizers and cleaners
+  - [x] Item 9: Prefer try-with-resources to try-finally
+- [ ] **Chapter 3 (Items 10–14)**: Methods Common to All Objects
+  - [x] Item 10: Obey equals contract
+  - [x] Item 11: Always override hashCode when overriding equals
+  - [ ] Item 12: Always override toString
+  - [ ] Item 13: Override clone judiciously
+  - [ ] Item 14: Consider implementing Comparable
 - [ ] **Chapter 4 (Items 15–25)**: Classes and Interfaces
 - [ ] **Chapter 5 (Items 26–33)**: Generics
 - [ ] **Chapter 6 (Items 34–41)**: Enums and Annotations
