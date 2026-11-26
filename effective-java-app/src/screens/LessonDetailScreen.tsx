@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
 import { getLessonByItemNumber } from '../content';
-import { markItemComplete } from '../storage/appStorage';
+import { markItemComplete, addStudyMinutes } from '../storage/appStorage';
 import CodeBlock from '../components/CodeBlock';
 import Flashcard from '../components/Flashcard';
 import QuizQuestion from '../components/QuizQuestion';
+import InterviewQuestionCard from '../components/InterviewQuestionCard';
 
 export default function LessonDetailScreen() {
   const route = useRoute<any>();
@@ -15,6 +16,16 @@ export default function LessonDetailScreen() {
   const lesson = getLessonByItemNumber(itemNumber);
 
   const [answers, setAnswers] = useState<boolean[]>([]);
+
+  // Automatically record study time while the lesson is active
+  useEffect(() => {
+    const INTERVAL_SECONDS = 30;
+    const interval = setInterval(() => {
+      addStudyMinutes(INTERVAL_SECONDS / 60);
+    }, INTERVAL_SECONDS * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   if (!lesson) {
     return (
@@ -73,6 +84,15 @@ export default function LessonDetailScreen() {
             Lesson complete — {answers.filter(Boolean).length}/{answers.length} correct
           </Text>
         </View>
+      )}
+
+      {lesson.interview_questions && lesson.interview_questions.length > 0 && (
+        <>
+          <Text style={styles.sectionHeader}>Interview Questions</Text>
+          {lesson.interview_questions.map((iq, i) => (
+            <InterviewQuestionCard key={i} question={iq} index={i} />
+          ))}
+        </>
       )}
     </ScrollView>
   );

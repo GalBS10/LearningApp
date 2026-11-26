@@ -29,10 +29,16 @@ export function setOnboarded(): void {
 
 // ---- Paywall ----
 
-export const FREE_ITEM_LIMIT = 7; // items 1-7 always free, matches the trial list
+// Planned 7 trial items: 1 (static factories), 2 (builder), 3 (enum singleton),
+// 10 (equals), 11 (hashCode), 17 (minimize mutability), 80 (prefer executors to threads)
+export const FREE_ITEM_NUMBERS = [1, 2, 3, 10, 11, 17, 80] as const;
+
+export function isFreeItem(itemNumber: number): boolean {
+  return (FREE_ITEM_NUMBERS as readonly number[]).includes(itemNumber);
+}
 
 export function canAccessItem(itemNumber: number): boolean {
-  if (itemNumber <= FREE_ITEM_LIMIT) return true;
+  if (isFreeItem(itemNumber)) return true;
   return getPurchaseStatus() === 'unlocked';
 }
 
@@ -76,7 +82,7 @@ export function getTodaySession(): StudySession {
 // Call this as the user studies (e.g. every 30s while a lesson screen is active).
 export function addStudyMinutes(minutes: number): StudySession {
   const session = getTodaySession();
-  session.minutesSpent += minutes;
+  session.minutesSpent = Math.round((session.minutesSpent + minutes) * 100) / 100;
   const goal = getDailyGoalMinutes();
   const wasGoalMet = session.goalMet;
   session.goalMet = session.minutesSpent >= goal;

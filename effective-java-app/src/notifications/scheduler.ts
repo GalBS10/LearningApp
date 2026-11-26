@@ -3,10 +3,11 @@
 // their study goal for the day, using the real tracking in appStorage.ts —
 // do not duplicate that logic here.
 
-import notifee, { TriggerType, AndroidImportance } from '@notifee/react-native';
+import notifee, { TriggerType, AndroidImportance, EventType } from '@notifee/react-native';
 import { hasMetGoalToday } from '../storage/appStorage';
 
 const CHANNEL_ID = 'daily-reminder';
+const NOTIFICATION_ID = 'daily-study-reminder';
 
 export async function setupNotificationChannel(): Promise<void> {
   await notifee.createChannel({
@@ -26,6 +27,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 export async function scheduleDailyReminder(hour = 18, minute = 0): Promise<void> {
   await notifee.createTriggerNotification(
     {
+      id: NOTIFICATION_ID,
       title: 'Learning goal',
       body: "Time for today's Effective Java lesson!",
       android: { channelId: CHANNEL_ID },
@@ -38,12 +40,26 @@ export async function scheduleDailyReminder(hour = 18, minute = 0): Promise<void
   );
 }
 
-// Call this right before the scheduled time would fire (e.g. from a
-// background handler) to skip the notification if the goal's already met.
-export async function suppressIfGoalMet(notificationId: string): Promise<void> {
+// Suppress or cancel the notification if the goal has already been met today.
+export async function suppressIfGoalMet(notificationId: string = NOTIFICATION_ID): Promise<void> {
   if (hasMetGoalToday()) {
     await notifee.cancelNotification(notificationId);
   }
+}
+
+// Registers background and foreground handlers to suppress notification if goal was completed today
+export function registerNotificationEventHandlers(): void {
+  notifee.onBackgroundEvent(async ({ type, detail }) => {
+    if (type === EventType.DELIVERED && detail.notification?.id) {
+      await suppressIfGoalMet(detail.notification.id);
+    }
+  });
+
+  notifee.onForegroundEvent(({ type, detail }) => {
+    if (type === EventType.DELIVERED && detail.notification?.id) {
+      suppressIfGoalMet(detail.notification.id);
+    }
+  });
 }
 
 function nextTriggerTime(hour: number, minute: number): number {
